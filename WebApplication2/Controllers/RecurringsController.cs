@@ -1,95 +1,95 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
+﻿using ExpenseManager.BusinessLayer.RecurringsService;
+using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
+using ExpenseManager.DataAccessLayer.Entities;
+using ExpenseManager.DataAccessLayer.Interfaces.GenericRepository;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using WebApplication2.Data;
-using WebApplication2.DTO;
-using WebApplication2.Models;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
-namespace WebApplication2.Controllers
+namespace ExpenseManager.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class RecurringsController : ControllerBase
     {
-        private readonly WalletManagerDbContext _context;
-        private readonly IMapper _mapper;
-        public RecurringsController(WalletManagerDbContext context, IMapper mapper)
+        private IGenericRepo<Recurring> genericRepo;
+        private readonly IRecurringsService _recurringsService;
+        public RecurringsController(IRecurringsService recurringsService, IGenericRepo<Recurring> repo)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _recurringsService = recurringsService ?? throw new ArgumentNullException(nameof(recurringsService));
+            genericRepo = repo ?? throw new ArgumentNullException(nameof(repo));
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<RecurringExpense>>> GetAll()
+        public async Task<ApiResponse<RecurringPagingDTO>> GetAll(int page = 1)
         {
-            var recurrings = await _context.RecurringExpenses
-            .Include(r => r.Wallet)
-            .Include(r => r.Category)
-            .Include(r => r.CreateByNavigation)
-            .Include(r => r.UpdateByNavigation)
-            .ToListAsync();
-            var recurringsDTOs = recurrings.Select(t => _mapper.Map<RecurringExpenseDTO>(t)).ToList();
-            return Ok(recurringsDTOs);
+            try
+            {
+                var response = await _recurringsService.GetAllRecurringsAsync(page);
+                return ApiResponse<RecurringPagingDTO>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<RecurringPagingDTO>.ErrorResponse("An error occurred while retrieving recurrings", ex.Message);
+            }
         }
-
+        
         [HttpGet("{id}")]
-        public async Task<ActionResult<List<RecurringExpense>>> GetByID(int id)
+        public async Task<ApiResponse<RecurringExpenseDTO>> GetByID(int id)
         {
-            var recurring = await _context.RecurringExpenses
-            .Include(r => r.Wallet)
-            .Include(r => r.Category)
-            .Include(r => r.CreateByNavigation)
-            .Include(r => r.UpdateByNavigation)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            try
+            {
+                var recurring = await _recurringsService.GetRecurringByIdAsync(id);
+                return ApiResponse<RecurringExpenseDTO>.SuccessResponse(recurring);
 
-            if (recurring == null) return NotFound();
-            return Ok(_mapper.Map<RecurringExpenseDTO>(recurring));
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<RecurringExpenseDTO>.ErrorResponse("An error occurred while retrieving the recurring", ex.Message);
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<string>> Create(CreateRecurringExpenseDTO newRecurring)
+        public async Task<ApiResponse<string>> Create(CreateRecurringDTO newRecurring)
         {
-            if (newRecurring == null)
+            try
             {
-                return BadRequest("Transaction cannot be null");
+                await _recurringsService.CreateRecurringAsync(newRecurring);
+                return ApiResponse<string>.SuccessResponse("Recurring Added Successfully");
             }
-            var recurring = _mapper.Map<RecurringExpense>(newRecurring);
-            recurring.CreateDate = DateTime.UtcNow;
-            _context.RecurringExpenses.Add(recurring);
-            await _context.SaveChangesAsync();
-            string message = $"New Recurring Added Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while creating the recurring", ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<string>> Update(int id, UpdateRecurringExpenseDTO updatedRecurring)
+        public async Task<ApiResponse<string>> Update(int id, UpdateRecurringDTO updatedRecurring)
         {
-            var recurring = await _context.RecurringExpenses.FindAsync(id);
-            if (recurring == null)
+            try
             {
-                return NotFound();
+                await _recurringsService.UpdateRecurringAsync(id, updatedRecurring);
+                return ApiResponse<string>.SuccessResponse("Recurring Updated Successfully");
             }
-            _mapper.Map(updatedRecurring, recurring);
-            recurring.UpdateDate = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            string message = $"Recurring Updated Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the recurring", ex.Message);
+            }
         }
-
+        
         [HttpDelete("{id}")]
-        public async Task<ActionResult<string>> Delete(int id)
+        public async Task<ApiResponse<string>> DeleteRecurring(int id)
         {
-            var recurring = await _context.RecurringExpenses.FindAsync(id);
-            if (recurring == null)
+            try
             {
-                return NotFound();
+                await _recurringsService.DeleteRecurringAsync(id);
+                return ApiResponse<string>.SuccessResponse("Recurring Deleted Successfully");
             }
-            _context.RecurringExpenses.Remove(recurring);
-            await _context.SaveChangesAsync();
-            string message = $"Recurring Deleted Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while deleting the recurring", ex.Message);
+            }
         }
     }
 }

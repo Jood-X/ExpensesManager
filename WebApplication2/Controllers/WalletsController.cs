@@ -1,95 +1,93 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
+﻿using ExpenseManager.BusinessLayer.WalletService;
+using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WebApplication2.Data;
-using WebApplication2.DTO;
-using WebApplication2.Models;
+using System.Security.Claims;
+using ExpenseManager.DataAccessLayer.Entities;
 
-namespace WebApplication2.Controllers
+namespace ExpenseManager.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
+
     public class WalletsController : ControllerBase
     {
-        private readonly WalletManagerDbContext _context;
-        private readonly IMapper _mapper;
-        public WalletsController(WalletManagerDbContext context, IMapper mapper)
+        private readonly IWalletService _walletService;
+        public WalletsController(IWalletService walletService)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _walletService = walletService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Wallet>>> GetAll()
+        public async Task<ApiResponse<WalletPagingDTO>> GetAll(string? searchTerm, int page=1)
         {
-            var wallets = await _context.Wallets
-                .Include(w => w.CreateByNavigation)
-                .Include(w => w.UpdateByNavigation)
-                .ToListAsync();
-            var walletDTOs = wallets.Select(wallet => _mapper.Map<WalletDTO>(wallet)).ToList();
-            return Ok(walletDTOs);
+            try
+            {
+                var response = await _walletService.GetAllWalletsAsync(searchTerm, page);
+                return ApiResponse<WalletPagingDTO>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<WalletPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+            }
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<List<Wallet>>> GetByID(int id)
+        public async Task<ApiResponse<WalletsDTO>> GetByID(int id)
         {
-            var wallet = await _context.Wallets
-                .Include(w => w.CreateByNavigation)
-                .Include(w => w.UpdateByNavigation)
-                .FirstOrDefaultAsync(w => w.Id == id);
-            
-            if (wallet == null)
+            try
             {
-                return NotFound();
+                var wallet = await _walletService.GetWalletByIdAsync(id);
+                return ApiResponse<WalletsDTO>.SuccessResponse(wallet);
+
             }
-            return Ok(_mapper.Map<WalletDTO>(wallet));
+            catch (Exception ex)
+            {
+                return ApiResponse<WalletsDTO>.ErrorResponse("An error occurred while retrieving the user", ex.Message);
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<string>> Create(CreateWalletDTO newWallet)
+        public async Task<ApiResponse<string>> Create(CreateWalletDTO newWallet)
         {
-            if (newWallet == null)
+            try
             {
-                return BadRequest("Wallet cannot be null");
+                await _walletService.CreateWalletAsync(newWallet);
+                return ApiResponse<string>.SuccessResponse("Wallet Added Successfully");
             }
-            var wallet = _mapper.Map<Wallet>(newWallet);
-            wallet.CreateDate = DateTime.UtcNow;
-
-            _context.Wallets.Add(wallet);
-            await _context.SaveChangesAsync();
-            string message = $"New {wallet.Name} Wallet Added Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+            }
         }
 
-
         [HttpPut("{id}")]
-        public async Task<ActionResult<string>> Update(int id, UpdateWalletDTO updatedWallet)
+        public async Task<ApiResponse<string>> Update(int id, UpdateWalletDTO updatedWallet)
         {
-            var wallet = await _context.Wallets.FindAsync(id);
-            if (wallet == null)
+            try
             {
-                return NotFound();
+                await _walletService.UpdateWalletAsync(updatedWallet);
+                return ApiResponse<string>.SuccessResponse("Wallet Updated Successfully");
             }
-            _mapper.Map(updatedWallet, wallet);
-            wallet.UpdateDate = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            string message = $"Wallet {wallet.Name} Updated Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the wallet", ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<string>> Delete(int id)
+        public async Task<ApiResponse<string>> Delete(int id)
         {
-            var wallet = await _context.Wallets.FindAsync(id);
-            if (wallet == null)
+            try
             {
-                return NotFound();
+                await _walletService.DeleteWalletAsync(id);
+                return ApiResponse<string>.SuccessResponse("Wallet Deleted Successfully");
             }
-            _context.Wallets.Remove(wallet);
-            await _context.SaveChangesAsync();
-            string message = $"Wallet {wallet.Name} Deleted Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while deleting the wallet", ex.Message);
+            }          
         }
     }
 }

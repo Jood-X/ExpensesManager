@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using WebApplication2.Data;
-
+using ExpenseManager.DataAccessLayer.Data;
 #nullable disable
 
 namespace WebApplication2.Migrations
@@ -31,37 +30,39 @@ namespace WebApplication2.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Color")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("CreateBy")
                         .HasColumnType("int");
 
-                    b.Property<int?>("CreateByNavigationId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<decimal>("Limit")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("UpdateBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreateByNavigationId");
+                    b.HasIndex("CreateBy");
+
+                    b.HasIndex("UpdateBy");
 
                     b.ToTable("Categories");
                 });
@@ -75,7 +76,7 @@ namespace WebApplication2.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
@@ -83,27 +84,25 @@ namespace WebApplication2.Migrations
                     b.Property<int>("CreateBy")
                         .HasColumnType("int");
 
-                    b.Property<int>("CreateByNavigationId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<string>("RepeatInterval")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<int?>("UpdateBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("int");
@@ -112,7 +111,9 @@ namespace WebApplication2.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("CreateByNavigationId");
+                    b.HasIndex("CreateBy");
+
+                    b.HasIndex("UpdateBy");
 
                     b.HasIndex("WalletId");
 
@@ -128,7 +129,7 @@ namespace WebApplication2.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
@@ -136,11 +137,8 @@ namespace WebApplication2.Migrations
                     b.Property<int>("CreateBy")
                         .HasColumnType("int");
 
-                    b.Property<int>("CreateByNavigationId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)");
@@ -149,7 +147,7 @@ namespace WebApplication2.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("int");
@@ -158,7 +156,9 @@ namespace WebApplication2.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("CreateByNavigationId");
+                    b.HasIndex("CreateBy");
+
+                    b.HasIndex("UpdateBy");
 
                     b.HasIndex("WalletId");
 
@@ -174,39 +174,39 @@ namespace WebApplication2.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("datetime");
+
                     b.Property<int?>("UpdateBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.HasIndex("UpdateBy");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreateDate = new DateTime(2025, 6, 22, 10, 48, 29, 818, DateTimeKind.Local).AddTicks(8563),
-                            Email = "j@test.com",
-                            Name = "Jood",
-                            Password = "1234"
-                        });
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Wallet", b =>
@@ -218,41 +218,49 @@ namespace WebApplication2.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Balance")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<int>("CreateBy")
                         .HasColumnType("int");
 
-                    b.Property<int>("CreateByNavigationId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("UpdateBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdateDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreateByNavigationId");
+                    b.HasIndex("CreateBy");
 
-                    b.ToTable("Wallets");
+                    b.HasIndex("UpdateBy");
+
+                    b.ToTable("Wallet", (string)null);
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Category", b =>
                 {
                     b.HasOne("WebApplication2.Models.User", "CreateByNavigation")
                         .WithMany("Categories")
-                        .HasForeignKey("CreateByNavigationId");
+                        .HasForeignKey("CreateBy")
+                        .HasConstraintName("FK_Categories_Users");
+
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy")
+                        .HasConstraintName("FK_Categories_Users_UpdateBy");
 
                     b.Navigation("CreateByNavigation");
+
+                    b.Navigation("UpdateByNavigation");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.RecurringExpense", b =>
@@ -260,24 +268,31 @@ namespace WebApplication2.Migrations
                     b.HasOne("WebApplication2.Models.Category", "Category")
                         .WithMany("RecurringExpenses")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_RecurringExpenses_Categories");
 
                     b.HasOne("WebApplication2.Models.User", "CreateByNavigation")
                         .WithMany("RecurringExpenses")
-                        .HasForeignKey("CreateByNavigationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CreateBy")
+                        .IsRequired()
+                        .HasConstraintName("FK_RecurringExpenses_Users");
+
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy")
+                        .HasConstraintName("FK_RecurringExpenses_Users_UpdateBy");
 
                     b.HasOne("WebApplication2.Models.Wallet", "Wallet")
                         .WithMany("RecurringExpenses")
                         .HasForeignKey("WalletId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_RecurringExpenses_Wallet");
 
                     b.Navigation("Category");
 
                     b.Navigation("CreateByNavigation");
+
+                    b.Navigation("UpdateByNavigation");
 
                     b.Navigation("Wallet");
                 });
@@ -287,37 +302,61 @@ namespace WebApplication2.Migrations
                     b.HasOne("WebApplication2.Models.Category", "Category")
                         .WithMany("Transactions")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Transactions_Categories");
 
                     b.HasOne("WebApplication2.Models.User", "CreateByNavigation")
                         .WithMany("Transactions")
-                        .HasForeignKey("CreateByNavigationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CreateBy")
+                        .IsRequired()
+                        .HasConstraintName("FK_Transactions_Users");
+
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy")
+                        .HasConstraintName("FK_Transactions_Users_UpdateBy");
 
                     b.HasOne("WebApplication2.Models.Wallet", "Wallet")
                         .WithMany("Transactions")
                         .HasForeignKey("WalletId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Transactions_Wallet");
 
                     b.Navigation("Category");
 
                     b.Navigation("CreateByNavigation");
 
+                    b.Navigation("UpdateByNavigation");
+
                     b.Navigation("Wallet");
+                });
+
+            modelBuilder.Entity("WebApplication2.Models.User", b =>
+                {
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy")
+                        .HasConstraintName("FK_Users_Users_UpdateBy");
+
+                    b.Navigation("UpdateByNavigation");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Wallet", b =>
                 {
                     b.HasOne("WebApplication2.Models.User", "CreateByNavigation")
                         .WithMany("Wallets")
-                        .HasForeignKey("CreateByNavigationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CreateBy")
+                        .IsRequired()
+                        .HasConstraintName("FK_Wallet_Users");
+
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy")
+                        .HasConstraintName("FK_Wallet_Users_UpdateBy");
 
                     b.Navigation("CreateByNavigation");
+
+                    b.Navigation("UpdateByNavigation");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Category", b =>

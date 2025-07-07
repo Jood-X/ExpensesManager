@@ -1,85 +1,88 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
+﻿using ExpenseManager.BusinessLayer.UserService;
+using ExpenseManager.BusinessLayer.UserService.UserDTO;
+using ExpenseManager.DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WebApplication2.Data;
-using WebApplication2.DTO;
-using WebApplication2.Models;
 
-namespace WebApplication2.Controllers
+namespace ExpenseManager.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly WalletManagerDbContext _context;
-        private readonly IMapper _mapper;
-        public UsersController(WalletManagerDbContext context, IMapper mapper)
+        private readonly IUserService _userService;
+        public UsersController(IUserService userService)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
-        }
-        
-        [HttpGet]
-        public async Task<ActionResult<List<User>>> GetAll()
-        {
-            var users = await _context.Users
-                .Include(u => u.UpdateByNavigation)
-                .ToListAsync();
-            return Ok(users.Select(user => _mapper.Map<UserDTO>(user)));
+            _userService = userService;
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<List<User>>> GetByID(int id)
+        [HttpGet]
+        public async Task<ApiResponse<UsersPagingDTO>> GetAll(string? searchTerm, int page = 1)
         {
-            var user = await _context.Users
-                .Include(u => u.UpdateByNavigation)
-                .FirstOrDefaultAsync(u => u.Id == id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                var data = await _userService.GetAllUsersAsync(searchTerm, page);
+                return ApiResponse<UsersPagingDTO>.SuccessResponse(data, "Users retrieved successfully");
             }
-            return Ok(_mapper.Map<UserDTO>(user));
+            catch (Exception ex)
+            {
+                return ApiResponse<UsersPagingDTO>.ErrorResponse("An error occurred while retrieving the users", ex.Message); 
+            }            
+        }
+
+        [HttpGet("details/{id}")]
+        public async Task<ApiResponse<UsersDTO>> GetByID(int id)
+        {
+            try
+            {
+                var user = await _userService.GetUserByIdAsync(id);
+                return ApiResponse<UsersDTO>.SuccessResponse(user, "User retreived successfully");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<UsersDTO>.ErrorResponse("An error occurred while retrieving the user", ex.Message);
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<string>> Create(CreateUserDTO newUser) 
+        public async Task<ApiResponse<UsersDTO>> Create(CreateUserDTO newUser)
         {
-            var user = _mapper.Map<User>(newUser);
-            user.CreateDate = DateTime.UtcNow;
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            string message = $"User {user.Name} Added Successfully";
-            return message;
+            try
+            {
+                var user = await _userService.CreateUserAsync(newUser);
+                return ApiResponse<UsersDTO>.SuccessResponse(user, "New User Added Successfully");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<UsersDTO>.ErrorResponse("An error occurred while creating the user", ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<string>> Update(int id, UpdateUserDTO updatedUser) 
+        public async Task<ApiResponse<string>> Update(int id, UpdateUserDTO updatedUser) 
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                var user = await _userService.UpdateUserAsync(updatedUser);
+                return ApiResponse<string>.SuccessResponse("User Updated Successfully");
             }
-            _mapper.Map(updatedUser, user);
-            user.UpdateDate = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            string message = $"User {user.Name} Updated Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the user", ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<string>> Delete(int id) 
+        public async Task<ApiResponse<string>> Delete(int id) 
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                var user = await _userService.DeleteUserAsync(id);
+                return ApiResponse<string>.SuccessResponse("User Deleted Successfully");
             }
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-            string message = $"User {user.Name} Deleted Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the user", ex.Message);
+            }
         }
     }
 }

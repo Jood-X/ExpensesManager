@@ -1,90 +1,96 @@
 ﻿using AutoMapper;
+using ExpenseManager.Api;
+using ExpenseManager.BusinessLayer.CategoriesService;
+using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
+using ExpenseManager.BusinessLayer.UserService.UserDTO;
+using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using WebApplication2.Data;
-using WebApplication2.DTO;
-using WebApplication2.Models;
+using System.Security.Claims;
 
 namespace WebApplication2.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CategoriesController : ControllerBase
     {
-        private readonly WalletManagerDbContext _context;
-        private readonly IMapper _mapper;
-        public CategoriesController(WalletManagerDbContext context, IMapper mapper)
+        private readonly ICategoryService _categoryService;
+        public CategoriesController(ICategoryService categoryService)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Category>>> GetAll()
+        public async Task<ApiResponse<CategoryPagingDTO>> GetAll(string? searchTerm, int page = 1)
         {
-            var categories = await _context.Categories
-                .Include(c => c.CreateByNavigation)
-                .Include(c => c.UpdateByNavigation)
-                .ToListAsync();
-            var categoriesDTOs = categories.Select(t => _mapper.Map<CategoryDTO>(t)).ToList();
-            return Ok(categoriesDTOs);
+            try
+            {
+                var response = await _categoryService.GetAllCategoriesAsync(searchTerm, page);
+                return ApiResponse<CategoryPagingDTO>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<CategoryPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+            }
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<List<Category>>> GetByID(int id)
+        public async Task<ApiResponse<CategoryDTO>> GetByID(int id)
         {
-            var category = await _context.Categories
-                .Include(c => c.CreateByNavigation)
-                .FirstOrDefaultAsync(c => c.Id == id);
-
-            if (category == null)
-                return NotFound();
-            return Ok(_mapper.Map<CategoryDTO>(category));
+            try
+            {
+                var category = await _categoryService.GetCategoryByIdAsync(id);
+                return ApiResponse<CategoryDTO>.SuccessResponse(category, "Category retrieved successfully");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<CategoryDTO>.ErrorResponse("An error occurred while retrieving the category", ex.Message);
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<string>> Create(CreateCategoryDTO newCategory)
+        public async Task<ApiResponse<string>> Create(CreateCategoryDTO newCategory)
         {
-            if (newCategory == null)
+            try
             {
-                return BadRequest("Category cannot be null");
+                await _categoryService.CreateCategoryAsync(newCategory);
+                return ApiResponse<string>.SuccessResponse("Category Added Successfully");
             }
-            var category = _mapper.Map<Category>(newCategory);
-            category.CreateDate = DateTime.UtcNow;
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
-            string message = $"Category {category.Name} Added Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while creating the category", ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<string>> Update(int id, UpdateCategoryDTO updatedCategory)
+        public async Task<ApiResponse<string>> Update(int id, UpdateCategoryDTO updatedCategory)
         {
-            var category = await _context.Categories.FindAsync(id);
-            if (category == null)
+            try
             {
-                return NotFound();
+                await _categoryService.UpdateCategoryAsync(id, updatedCategory);
+                return ApiResponse<string>.SuccessResponse("Category Updated Successfully");
             }
-            category.UpdateDate = DateTime.UtcNow;
-            _mapper.Map(updatedCategory, category);
-            await _context.SaveChangesAsync();
-            string message = $"Category {category.Name} Updated Successfully";
-            return message;
+            catch (Exception ex) 
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the category", ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<string>> Delete(int id)
+        public async Task<ApiResponse<string>> Delete(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
-            if (category == null)
+            try
             {
-                return NotFound();
+                await _categoryService.DeleteCategoryAsync(id);
+                return ApiResponse<string>.SuccessResponse("Category Deleted Successfully");
             }
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
-            string message = $"Category {category.Name} Deleted Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while deleting the category", ex.Message);
+            }
         }
     }
 }

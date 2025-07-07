@@ -1,94 +1,106 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
+﻿using ExpenseManager.BusinessLayer.TransactionsService;
+using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
+using ExpenseManager.DataAccessLayer;
+using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WebApplication2.Data;
-using WebApplication2.DTO;
-using WebApplication2.Models;
 
-namespace WebApplication2.Controllers
+namespace ExpenseManager.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TransactionsController: ControllerBase
+    [Authorize]
+    public class TransactionsController : ControllerBase
     {
-        private readonly WalletManagerDbContext _context;
-        private readonly IMapper _mapper;
-        public TransactionsController(WalletManagerDbContext context, IMapper mapper)
+        private readonly ITransactionService _transactionService;
+
+        public TransactionsController(ITransactionService transactionService)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Transaction>>> GetAll()
+        public async Task<ApiResponse<TransactionPagingDTO>> GetAll([FromQuery] TransactionFilter query)
         {
-            var trans = await _context.Transactions
-            .Include(t => t.Wallet)
-            .Include(t => t.Category)
-            .Include(t => t.CreateByNavigation)
-            .Include(t => t.UpdateByNavigation)
-            .ToListAsync();
-            var transDTOs = trans.Select(t => _mapper.Map<TransactionDTO>(t)).ToList();
-            return Ok(transDTOs);
-        }        
+            try
+            {
+                var response = await _transactionService.GetAllTransactionsAsync(query);
+                return ApiResponse<TransactionPagingDTO>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<TransactionPagingDTO>.ErrorResponse("An error occurred while retrieving transactions", ex.Message);
+            }
+        }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<List<Transaction>>> GetByID(int id)
+        public async Task<ApiResponse<TransactionDTO>> GetByID(int id)
         {
-            var transaction = await _context.Transactions
-            .Include(t => t.Wallet)
-            .Include(t => t.Category)
-            .Include(t => t.CreateByNavigation)
-            .Include(t => t.UpdateByNavigation)
-            .FirstOrDefaultAsync(t => t.Id == id);
-
-            if (transaction == null) return NotFound();
-            return Ok(_mapper.Map<TransactionDTO>(transaction));
+            try
+            {
+                var transaction = await _transactionService.GetTransactionByIdAsync(id);
+                return ApiResponse<TransactionDTO>.SuccessResponse(transaction);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<TransactionDTO>.ErrorResponse("An error occurred while retrieving the transaction", ex.Message);
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<string>> Create(CreateTransactionDTO newTrans)
+        public async Task<ApiResponse<string>> Create(CreateTransactionDTO newTrans)
         {
-            if (newTrans == null)
+            try
             {
-                return BadRequest("Transaction cannot be null");
+                await _transactionService.CreateTransactionAsync(newTrans);
+                return ApiResponse<string>.SuccessResponse("Transaction Added Successfully");
             }
-            var trans = _mapper.Map<Transaction>(newTrans);
-            trans.CreateDate = DateTime.UtcNow;
-            _context.Transactions.Add(trans);
-            await _context.SaveChangesAsync();
-            string message = $"New Transaction Created Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while creating the transaction", ex.Message);
+            }
         }
-        
+
         [HttpPut("{id}")]
-        public async Task<ActionResult<string>> Update (int id, UpdateTransactionDTO updatedTrans)
+        public async Task<ApiResponse<string>> Update(int id, UpdateTransactionDTO updatedTrans)
         {
-            var trans = await _context.Transactions.FindAsync(id);
-            if (trans == null)
+            try
             {
-                return NotFound();
+                var result = await _transactionService.UpdateTransactionAsync(id, updatedTrans);
+                return ApiResponse<string>.SuccessResponse("Transaction Updated Successfully");
             }
-            _mapper.Map(updatedTrans, trans);
-            trans.UpdateDate = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            string message = $"Transacrion Updated Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the transaction", ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<string>> Delete(int id)
+        public async Task<ApiResponse<string>> Delete(int id)
         {
-            var trans = await _context.Transactions.FindAsync(id);
-            if (trans == null)
+            try
             {
-                return NotFound();
+                var result = await _transactionService.DeleteTransactionAsync(id);
+                return ApiResponse<string>.SuccessResponse("Transaction Deleted Successfully");
             }
-            _context.Transactions.Remove(trans);
-            await _context.SaveChangesAsync();
-            string message = $"Transacrion Deleted Successfully";
-            return message;
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse("An error occurred while deleting the transaction", ex.Message);
+            }
+        }
+
+        [HttpGet("{TopSpendingCategory}")]
+        public async Task<ApiResponse<TransactionDTO>> GetTopSpendingCategory()
+        {
+            try
+            {
+                var topCategory = await _transactionService.GetTopSpendingCategory();
+                return ApiResponse<TransactionDTO>.SuccessResponse(new TransactionDTO { CategoryName = topCategory });
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<TransactionDTO>.ErrorResponse("An error occurred while retrieving the top spending category", ex.Message);
+            }
         }
     }
 }

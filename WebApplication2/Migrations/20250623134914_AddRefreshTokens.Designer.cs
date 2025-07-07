@@ -6,14 +6,13 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ExpenseManager.DataAccessLayer.Data;
-
 #nullable disable
 
 namespace WebApplication2.Migrations
 {
     [DbContext(typeof(WalletManagerDbContext))]
-    [Migration("20250619124442_Initial")]
-    partial class Initial
+    [Migration("20250623134914_AddRefreshTokens")]
+    partial class AddRefreshTokens
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -28,7 +27,10 @@ namespace WebApplication2.Migrations
             modelBuilder.Entity("WebApplication2.Models.Category", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Color")
                         .HasMaxLength(50)
@@ -63,13 +65,18 @@ namespace WebApplication2.Migrations
 
                     b.HasIndex("CreateBy");
 
+                    b.HasIndex("UpdateBy");
+
                     b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.RecurringExpense", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18, 2)");
@@ -109,6 +116,8 @@ namespace WebApplication2.Migrations
 
                     b.HasIndex("CreateBy");
 
+                    b.HasIndex("UpdateBy");
+
                     b.HasIndex("WalletId");
 
                     b.ToTable("RecurringExpenses");
@@ -117,7 +126,10 @@ namespace WebApplication2.Migrations
             modelBuilder.Entity("WebApplication2.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18, 2)");
@@ -149,6 +161,8 @@ namespace WebApplication2.Migrations
 
                     b.HasIndex("CreateBy");
 
+                    b.HasIndex("UpdateBy");
+
                     b.HasIndex("WalletId");
 
                     b.ToTable("Transactions");
@@ -157,7 +171,10 @@ namespace WebApplication2.Migrations
             modelBuilder.Entity("WebApplication2.Models.User", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreateDate")
                         .HasColumnType("datetime");
@@ -176,6 +193,12 @@ namespace WebApplication2.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("UpdateBy")
                         .HasColumnType("int");
 
@@ -184,13 +207,18 @@ namespace WebApplication2.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UpdateBy");
+
                     b.ToTable("Users");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Wallet", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Balance")
                         .HasColumnType("decimal(18, 2)");
@@ -216,6 +244,8 @@ namespace WebApplication2.Migrations
 
                     b.HasIndex("CreateBy");
 
+                    b.HasIndex("UpdateBy");
+
                     b.ToTable("Wallet", (string)null);
                 });
 
@@ -226,7 +256,13 @@ namespace WebApplication2.Migrations
                         .HasForeignKey("CreateBy")
                         .HasConstraintName("FK_Categories_Users");
 
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy");
+
                     b.Navigation("CreateByNavigation");
+
+                    b.Navigation("UpdateByNavigation");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.RecurringExpense", b =>
@@ -243,6 +279,10 @@ namespace WebApplication2.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_RecurringExpenses_Users");
 
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy");
+
                     b.HasOne("WebApplication2.Models.Wallet", "Wallet")
                         .WithMany("RecurringExpenses")
                         .HasForeignKey("WalletId")
@@ -252,6 +292,8 @@ namespace WebApplication2.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("CreateByNavigation");
+
+                    b.Navigation("UpdateByNavigation");
 
                     b.Navigation("Wallet");
                 });
@@ -270,6 +312,10 @@ namespace WebApplication2.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_Transactions_Users");
 
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy");
+
                     b.HasOne("WebApplication2.Models.Wallet", "Wallet")
                         .WithMany("Transactions")
                         .HasForeignKey("WalletId")
@@ -280,7 +326,18 @@ namespace WebApplication2.Migrations
 
                     b.Navigation("CreateByNavigation");
 
+                    b.Navigation("UpdateByNavigation");
+
                     b.Navigation("Wallet");
+                });
+
+            modelBuilder.Entity("WebApplication2.Models.User", b =>
+                {
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy");
+
+                    b.Navigation("UpdateByNavigation");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Wallet", b =>
@@ -291,7 +348,13 @@ namespace WebApplication2.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_Wallet_Users");
 
+                    b.HasOne("WebApplication2.Models.User", "UpdateByNavigation")
+                        .WithMany()
+                        .HasForeignKey("UpdateBy");
+
                     b.Navigation("CreateByNavigation");
+
+                    b.Navigation("UpdateByNavigation");
                 });
 
             modelBuilder.Entity("WebApplication2.Models.Category", b =>

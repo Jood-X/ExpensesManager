@@ -1,22 +1,69 @@
+using ExpenseManager.Api;
+using ExpenseManager.BusinessLayer.AuthorizationService;
+using ExpenseManager.BusinessLayer.CategoriesService;
+using ExpenseManager.BusinessLayer.RecurringsService;
+using ExpenseManager.BusinessLayer.TransactionsService;
+using ExpenseManager.BusinessLayer.UserService;
+using ExpenseManager.BusinessLayer.WalletService;
+using ExpenseManager.DataAccessLayer.Data;
+using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
+using ExpenseManager.DataAccessLayer.Interfaces.GenericRepository;
+using ExpenseManager.DataAccessLayer.Interfaces.RecurringsRepository;
+using ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository;
+using ExpenseManager.DataAccessLayer.Interfaces.UserRepository;
+using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Scalar.AspNetCore;
+using Microsoft.OpenApi.Models;
 using System.Text;
-using WebApplication2.Data;
-using WebApplication2.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(x =>
+        x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles); ;
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddOpenApi();
-builder.Services.AddAutoMapper(typeof(Program).Assembly);
 
-builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Wallet Manager API",
+        Version = "v1"
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer' followed by your valid JWT token in the textbox below.\n\nExample: `Bearer eyJhbGciOi...`"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
 builder.Services.AddDbContext<WalletManagerDbContext>(Options => 
     Options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -35,6 +82,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddScoped(typeof(IGenericRepo<>), typeof(GenericRepo<>));
+builder.Services.AddScoped<IRecurringRepository, RecurringRepository>();
+builder.Services.AddScoped<IRecurringsService, RecurringsService>();
+builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IWalletRepository, WalletRepository>();
+builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+//Services from Identity Core
+//builder.Services.AddIdentityApiEndpoints<IdentityUser>()
+//                .AddEntityFrameworkStores<WalletManagerDbContext>();
+
+//builder.Services.Configure<IdentityOptions>(options =>
+//{
+//    options.Password.RequireDigit = false;
+//    options.Password.RequireLowercase = false;
+//    options.Password.RequireUppercase = false;
+//    options.User.RequireUniqueEmail = true;
+//});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -42,14 +115,57 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    //app.MapScalarApiReference();
-    //app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
+
+//#region Config. Cors
+//app.UseCors(options => 
+//    options.WithOrigins("")
+//       .AllowAnyMethod()
+//       .AllowAnyHeader());
+//#endregion
+
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
 app.MapControllers();
 
+// for angular
+//app.MapGroup("/api")
+//   .MapIdentityApi<IdentityUser>();
+//app.MapPost("/api/signup", async(
+//        UserManager<IdentityUser> userManager,
+//        [FromBody] UserRegistrationModel userRegistrationModel
+//    ) => 
+//    {
+//        IdentityUser user = new IdentityUser()
+//        {
+//            Email = userRegistrationModel.Email,
+//            UserName = userRegistrationModel.FullName,
+//        };
+//        var result = await userManager.CreateAsync(user, userRegistrationModel.Password);
+//        if(result.Succeeded)
+//        {
+//            return Results.Ok(new { message = "User registered successfully." });
+//        }
+//        else
+//        {
+//            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+//        }
+//    });
+
+
 app.Run();
+
+/*
+public class UserRegistrationModel
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+
+    public string FullName { get; set; } = string.Empty;
+}
+*/
