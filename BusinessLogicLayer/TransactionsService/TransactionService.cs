@@ -8,6 +8,7 @@ using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace ExpenseManager.BusinessLayer.TransactionsService
 {
@@ -21,7 +22,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         private readonly IHttpContextAccessor _httpContextAccessor;
         private DateTime date = DateTime.UtcNow;
 
-        public TransactionService(ITransactionRepository transactionRepository,IWalletRepository walletRepository, ICategoryRepository categoryRepository , IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+        public TransactionService(ITransactionRepository transactionRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
         {
             _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(TransactionRepository));
             _walletRepository = walletRepository ?? throw new ArgumentNullException(nameof(walletRepository));
@@ -33,7 +34,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
 
         private string GetUserIdOrThrow()
         {
-            var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value; 
+            var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
                 throw new UnauthorizedAccessException("User ID is missing from token.");
             return userId;
@@ -125,7 +126,8 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             await _walletRepository.Update(wallet);
             return true;
         }
-        public async Task<bool> UpdateTransactionAsync(int id,UpdateTransactionDTO updatedTransaction)
+        
+        public async Task<bool> UpdateTransactionAsync(int id, UpdateTransactionDTO updatedTransaction)
         {
             var userId = GetUserIdOrThrow();
 
@@ -152,14 +154,32 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             await _transactionRepository.Delete(transaction);
             return true;
         }
-
+                
         public async Task<string> GetSpendings(int days)
         {
+            SpendingsFilter.Days day;
+            if (days > 0 && days < 30)
+            {
+                day = SpendingsFilter.Days.Day;
+            }
+            else if (days >= 30 && days < 360)
+            {
+                day = SpendingsFilter.Days.Month;
+            }
+            else if (days >= 360)
+            {
+                day = SpendingsFilter.Days.Year;
+            }
+            else
+            {
+                throw new Exception("Number of days can't be negative");
+            }
+
             var userId = GetUserIdOrThrow();
-            var allTransactions = await _transactionRepository.GetSpendings(days);
+            var allTransactions = await _transactionRepository.GetSpendings(day);
             var transaction = allTransactions
                 .Where(w => w.CreateBy.ToString() == userId);
-            
+
             if (transaction == null)
             {
                 throw new InvalidOperationException("No transaction found.");
@@ -173,10 +193,45 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             return $"Total spent for {days} days is: {totalSpendings}";
         }
 
-        public async Task<List<TopCategory>> GetTopSpendingCategories(int days, int topN)
+        public async Task<List<TopCategory>> GetTopSpendingCategories(TopSpendingsFilter filter)
         {
             var userId = GetUserIdOrThrow();
-            return await _transactionRepository.GetTopSpendingCategoriesAsync(userId, days, topN);
+            return await _transactionRepository.GetTopSpendingCategoriesAsync(userId, filter);
+        }
+
+        public async Task<IEnumerable<ChartDTO>> GetTransactionsChartData(string type)
+        {
+            var userId = GetUserIdOrThrow();
+            if (string.IsNullOrEmpty(userId))
+            {
+                throw new ArgumentNullException(nameof(userId), "User ID cannot be null or empty.");
+            }
+
+            if (!int.TryParse(userId, out var userIdInt))
+            {
+                throw new InvalidOperationException("User ID is not in a valid format.");
+            }
+
+            var chartData = await _transactionRepository.GetChartData(userIdInt, type);
+            var labels = chartData[0] as List<string>;
+            var data = chartData[1] as List<decimal>;
+
+            if (labels == null || data == null || labels.Count != data.Count)
+            {
+                throw new InvalidOperationException("Chart data is not in the expected format.");
+            }
+
+            var chart = new List<ChartDTO>();
+            for (int i = 0; i < labels.Count; i++)
+            {
+                var chartItem = new ChartDTO
+                {
+                    Label = labels[i],
+                    TotalAmount = data[i]
+                };
+                chart.Add(chartItem);
+            }
+            return chart;
         }
     }
 }

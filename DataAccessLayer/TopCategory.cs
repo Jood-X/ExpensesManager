@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
+namespace ExpenseManager.DataAccessLayer
 {
     public class TopCategory
     {

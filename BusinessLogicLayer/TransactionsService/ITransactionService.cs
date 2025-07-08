@@ -1,7 +1,6 @@
 ﻿using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
-using ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository;
 
 namespace ExpenseManager.BusinessLayer.TransactionsService
 {
@@ -13,6 +12,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         Task<bool> UpdateTransactionAsync(int id, UpdateTransactionDTO updatedTransaction);
         Task<bool> DeleteTransactionAsync(int transactionId);
         Task <string> GetSpendings(int days);
-        Task<List<TopCategory>> GetTopSpendingCategories(int days, int topN);
+        Task<List<TopCategory>> GetTopSpendingCategories(TopSpendingsFilter filter);
+        Task<IEnumerable<ChartDTO>> GetTransactionsChartData(string type);
     }
 }

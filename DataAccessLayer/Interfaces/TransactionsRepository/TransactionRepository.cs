@@ -60,36 +60,37 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
             return transaction;
         }
 
-        public async Task<IEnumerable<Transaction>> GetSpendings(int days)
+        public async Task<IEnumerable<Transaction>> GetSpendings(SpendingsFilter.Days days)
         {
             var transactions = _context.Transactions
-                    .Include(t => t.Wallet)
-                    .Include(t => t.Category)
-                    .Include(c => c.CreateByNavigation)
-                    .Include(c => c.UpdateByNavigation)
-                    .AsQueryable();
+                .Include(t => t.Wallet)
+                .Include(t => t.Category)
+                .Include(c => c.CreateByNavigation)
+                .Include(c => c.UpdateByNavigation)
+                .AsQueryable();
 
             switch (days)
             {
-                case 1:
-                    transactions = transactions.Where(t => t.CreateDate.Date.Day == DateTime.Now.Day);
+                case SpendingsFilter.Days.Day:
+                    transactions = transactions.Where(t => t.CreateDate.Day == DateTime.Now.Day);
                     break;
-                case 7:
-                    transactions = transactions.Where(t => t.CreateDate.Date.Month == DateTime.Now.Month);
+                case SpendingsFilter.Days.Month:
+                    transactions = transactions.Where(t => t.CreateDate.Year == DateTime.Now.Year &&
+                                                           t.CreateDate.Month == DateTime.Now.Month);
                     break;
-                case 30:
-                    transactions = transactions.Where(t => t.CreateDate.Date.Year == DateTime.Now.Year);
+                case SpendingsFilter.Days.Year:
+                    transactions = transactions.Where(t => t.CreateDate.Year == DateTime.Now.Year);
                     break;
                 default:
-                    transactions = transactions.Where(t => t.CreateDate.Date.Day == DateTime.Now.Day);
-                    break;
+                    throw new ArgumentOutOfRangeException(nameof(days), "Invalid value for days filter.");
             }
+
             return await transactions.ToListAsync();
         }
 
-        public async Task<List<TopCategory>> GetTopSpendingCategoriesAsync(string userId, int days, int topN)
+        public async Task<List<TopCategory>> GetTopSpendingCategoriesAsync(string userId, TopSpendingsFilter filter)
         {
-            var date = DateTime.UtcNow.AddDays(-days);
+            var date = DateTime.UtcNow.AddDays(-filter.Days);
 
             var topCategories = await _context.Transactions
                 .Where(t => t.CreateDate >= date &&
@@ -101,13 +102,39 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
                     TotalSpent = g.Sum(t => t.Amount)
                 })
                 .OrderByDescending(c => c.TotalSpent)
-                .Take(topN)
+                .Take(filter.TopN)
                 .ToListAsync();
 
             return topCategories;
         }
 
+        public async Task<List<object>> GetChartData(int userId, string type)
+        {
+            List<object> chartData = new List<object>();
+            List<Transaction> transactions = (await GetAll()).Where(t => t.CreateBy == userId 
+                                            && t.Category.Type.ToLower() == type.ToLower()).ToList();
+            
+            if (transactions == null || !transactions.Any())
+            {
+                throw new InvalidOperationException("No transactions found for the user.");
+            }
 
+            List<string> labels = transactions
+                .Select(t => t.CreateDate.Date)
+                .Distinct()
+                .OrderBy(d => d)
+                .Select(d => d.ToString("yyyy-MM-dd")) 
+                .ToList();
 
+            List<decimal> total = transactions
+                .GroupBy(t => t.CreateDate.Date)
+                .OrderBy(g => g.Key)
+                .Select(g => g.Sum(t => t.Amount))
+                .ToList();
+
+            chartData.Add(labels);
+            chartData.Add(total);
+            return chartData;
+        }
     }
 }
