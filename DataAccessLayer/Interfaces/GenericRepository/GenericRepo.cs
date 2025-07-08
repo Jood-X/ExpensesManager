@@ -17,6 +17,7 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.GenericRepository
         {
             this._context = _context;
             table = _context.Set<T>();
+
         }
 
         public async Task<IEnumerable<T>> GetAll()
