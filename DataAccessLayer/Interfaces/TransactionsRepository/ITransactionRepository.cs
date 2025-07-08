@@ -13,5 +13,7 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
         Task<int> GetAllTransactionsCountAsync();
         Task<IEnumerable<Transaction>> GetAllTransactionsAsync(TransactionFilter query);
         Task<Transaction?> GetTransactionByIdAsync(int transactionId);
+        Task<IEnumerable<Transaction>> GetSpendings(int days);
+        Task<List<TopCategory>> GetTopSpendingCategoriesAsync(string userId, int days, int topN);
     }
 }

@@ -153,45 +153,30 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             return true;
         }
 
-        public Task<IEnumerable<Transaction>> GetTransactionsByWalletIdAsync(int walletId)
+        public async Task<string> GetSpendings(int days)
         {
-            throw new NotImplementedException();
-        }
-
-        public Task<decimal> GetSpendings(int days)
-        {
-            switch (days)
+            var userId = GetUserIdOrThrow();
+            var allTransactions = await _transactionRepository.GetSpendings(days);
+            var transaction = allTransactions
+                .Where(w => w.CreateBy.ToString() == userId);
+            
+            if (transaction == null)
             {
-                case 1:
-                    return GetDayTransactions();
-                case 7:
-
-                    return GetMonthTransactions();
-                case 30:
-
-                    return GetYearTransactions();
+                throw new InvalidOperationException("No transaction found.");
             }
-            throw new Exception();
+
+            decimal totalSpendings = 0;
+            foreach (var item in transaction)
+            {
+                totalSpendings += item.Amount;
+            }
+            return $"Total spent for {days} days is: {totalSpendings}";
         }
 
-        public Task<decimal> GetDayTransactions()
+        public async Task<List<TopCategory>> GetTopSpendingCategories(int days, int topN)
         {
-            throw new NotImplementedException();
-        }
-
-        public Task<decimal> GetMonthTransactions()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<decimal> GetYearTransactions()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetTopSpendingCategory()
-        {
-            throw new NotImplementedException();
+            var userId = GetUserIdOrThrow();
+            return await _transactionRepository.GetTopSpendingCategoriesAsync(userId, days, topN);
         }
     }
 }

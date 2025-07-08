@@ -1,6 +1,7 @@
 ﻿using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
+using ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository;
 
 namespace ExpenseManager.BusinessLayer.TransactionsService
 {
@@ -11,12 +12,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         Task<bool> CreateTransactionAsync(CreateTransactionDTO newTransaction);
         Task<bool> UpdateTransactionAsync(int id, UpdateTransactionDTO updatedTransaction);
         Task<bool> DeleteTransactionAsync(int transactionId);
-        Task<IEnumerable<Transaction>> GetTransactionsByWalletIdAsync(int walletId);
-        Task <decimal> GetSpendings(int interval, int day, int month, int year); 
-        Task<decimal> GetDayTransactions();
-        Task<decimal> GetMonthTransactions();
-        Task<decimal> GetYearTransactions();
-
-        Task<string> GetTopSpendingCategory();
+        Task <string> GetSpendings(int days);
+        Task<List<TopCategory>> GetTopSpendingCategories(int days, int topN);
     }
 }
