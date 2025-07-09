@@ -11,12 +11,9 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         Task<bool> CreateTransactionAsync(CreateTransactionDTO newTransaction);
         Task<bool> UpdateTransactionAsync(int id, UpdateTransactionDTO updatedTransaction);
         Task<bool> DeleteTransactionAsync(int transactionId);
-        Task<IEnumerable<Transaction>> GetTransactionsByWalletIdAsync(int walletId);
-        Task <decimal> GetSpendings(int interval, int day, int month, int year); 
-        Task<decimal> GetDayTransactions();
-        Task<decimal> GetMonthTransactions();
-        Task<decimal> GetYearTransactions();
-
-        Task<string> GetTopSpendingCategory();
+        Task <string> GetSpendings(int days);
+        Task<List<TopCategory>> GetTopSpendingCategories(TopSpendingsFilter filter);
+        Task<IEnumerable<ChartDTO>> GetTransactionsChartData(string type);
+        Task<IEnumerable<MonthlyReport>> GetMonthlyReport();
     }
 }

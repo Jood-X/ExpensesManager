@@ -193,5 +193,46 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         {
             throw new NotImplementedException();
         }
+
+        public async Task<IEnumerable<MonthlyReport>> GetMonthlyReport()
+        {
+            var userId = GetUserIdOrThrow();
+
+            if (!int.TryParse(userId, out var userIdInt))
+            {
+                throw new InvalidOperationException("User ID is not in a valid format.");
+            }
+
+            var transactions = await _transactionRepository.GetAll();
+
+            if (transactions == null)
+            {
+                throw new InvalidOperationException("No transactions found.");
+            }
+
+            var userTransactions = transactions
+                .Where(t => t.CreateBy == userIdInt && t.CreateDate.Year == DateTime.Now.Year)
+                .Where(t => t.Category != null) 
+                .OrderBy(t => t.CreateDate.Month)
+                .ToList();
+
+            var groupedByMonth = userTransactions
+                .GroupBy(t => t.CreateDate.Month)
+                .Select(g =>
+                {
+                    var monthExpenses = g.Where(t => t.Category.Type.ToLower() == "expense").Sum(t => t.Amount);
+                    var monthIncomes = g.Where(t => t.Category.Type.ToLower() == "income").Sum(t => t.Amount);
+                    return new MonthlyReport
+                    {
+                        Month = g.Key.ToString(),
+                        TotalExpenses = monthExpenses,
+                        TotalIncome = monthIncomes,
+                        Balance = monthIncomes - monthExpenses
+                    };
+                });
+
+            return groupedByMonth;
+        }
+
     }
 }
