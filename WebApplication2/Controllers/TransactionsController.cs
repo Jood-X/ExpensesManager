@@ -1,9 +1,10 @@
 ﻿using ExpenseManager.BusinessLayer.TransactionsService;
 using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
-using ExpenseManager.DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Security.Claims;
 
 namespace ExpenseManager.Api.Controllers
 {
@@ -89,18 +90,61 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
-        [HttpGet("{TopSpendingCategory}")]
-        public async Task<ApiResponse<TransactionDTO>> GetTopSpendingCategory()
+        [HttpGet("TotalSpendings/{days}")]
+        public async Task<ApiResponse<string>> GetTotalSpendings(int days)
         {
             try
             {
-                var topCategory = await _transactionService.GetTopSpendingCategory();
-                return ApiResponse<TransactionDTO>.SuccessResponse(new TransactionDTO { CategoryName = topCategory });
+                var totalSpendings = await _transactionService.GetSpendings(days);
+                return ApiResponse<string>.SuccessResponse(totalSpendings);
             }
             catch (Exception ex)
             {
-                return ApiResponse<TransactionDTO>.ErrorResponse("An error occurred while retrieving the top spending category", ex.Message);
+                return ApiResponse<string>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
             }
         }
+
+        [HttpGet("TopCategories")]
+        public async Task<ApiResponse<List<TopCategory>>> GetTopSpendingCategories([FromQuery] TopSpendingsFilter filter)
+        {
+            try
+            {
+                var result = await _transactionService.GetTopSpendingCategories(filter);
+                return ApiResponse<List<TopCategory>>.SuccessResponse(result);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<List<TopCategory>>.ErrorResponse("Failed to retrieve top categories", ex.Message);
+            }
+        }
+
+        [HttpGet("ChartData")]
+        public async Task<ApiResponse<IEnumerable<ChartDTO>>> GetTransactionsChartData(string type = "expense/income")
+        {
+            try
+            {
+                var chartData = await _transactionService.GetTransactionsChartData(type);
+                return ApiResponse<IEnumerable<ChartDTO>>.SuccessResponse(chartData);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse< IEnumerable < ChartDTO >>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
+            }
+        }
+
+        [HttpGet("MonthlyReport")]
+        public async Task<ApiResponse<IEnumerable<MonthlyReport>>> GetMonthlyReport()
+        {
+            try
+            {
+                var chartData = await _transactionService.GetMonthlyReport();
+                return ApiResponse<IEnumerable<MonthlyReport>>.SuccessResponse(chartData);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<IEnumerable<MonthlyReport>>.ErrorResponse("An error occurred while retrieving monthly report", ex.Message);
+            }
+        }
+
     }
 }
