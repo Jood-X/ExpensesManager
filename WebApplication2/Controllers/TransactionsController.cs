@@ -3,6 +3,7 @@ using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
 using System.Security.Claims;
 
 namespace ExpenseManager.Api.Controllers
@@ -127,35 +128,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResponse<string>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
-            }
-        }
-
-        [HttpGet("TopCategories")]
-        public async Task<ApiResponse<List<TopCategory>>> GetTopSpendingCategories([FromQuery] TopSpendingsFilter filter)
-        {
-            try
-            {
-                var result = await _transactionService.GetTopSpendingCategories(filter);
-                return ApiResponse<List<TopCategory>>.SuccessResponse(result);
-            }
-            catch (Exception ex)
-            {
-                return ApiResponse<List<TopCategory>>.ErrorResponse("Failed to retrieve top categories", ex.Message);
-            }
-        }
-
-        [HttpGet("ChartData")]
-        public async Task<ApiResponse<IEnumerable<ChartDTO>>> GetTransactionsChartData(string type = "expense/income")
-        {
-            try
-            {
-                var chartData = await _transactionService.GetTransactionsChartData(type);
-                return ApiResponse<IEnumerable<ChartDTO>>.SuccessResponse(chartData);
-            }
-            catch (Exception ex)
-            {
-                return ApiResponse<IEnumerable<ChartDTO>>.ErrorResponse("An error occurred while retrieving chart data", ex.Message);
+                return ApiResponse< IEnumerable < ChartDTO >>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
             }
         }
 
