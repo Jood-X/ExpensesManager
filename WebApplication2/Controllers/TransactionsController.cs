@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Security.Claims;
+using WebApplication2.Controllers;
 
 namespace ExpenseManager.Api.Controllers
 {
@@ -14,10 +15,13 @@ namespace ExpenseManager.Api.Controllers
     public class TransactionsController : ControllerBase
     {
         private readonly ITransactionService _transactionService;
+        private readonly ILogger<TransactionsController> _logger;
 
-        public TransactionsController(ITransactionService transactionService)
+        public TransactionsController(ITransactionService transactionService, ILogger<TransactionsController> logger)
         {
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to TransactionsController");
         }
 
         [HttpGet]
@@ -30,6 +34,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<TransactionPagingDTO>.ErrorResponse("An error occurred while retrieving transactions", ex.Message);
             }
         }
@@ -44,6 +49,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<TransactionDTO>.ErrorResponse("An error occurred while retrieving the transaction", ex.Message);
             }
         }
@@ -58,6 +64,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while creating the transaction", ex.Message);
             }
         }
@@ -72,6 +79,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the transaction", ex.Message);
             }
         }
@@ -86,6 +94,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while deleting the transaction", ex.Message);
             }
         }
@@ -100,6 +109,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
             }
         }
@@ -114,6 +124,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<List<TopCategory>>.ErrorResponse("Failed to retrieve top categories", ex.Message);
             }
         }
@@ -128,6 +139,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse< IEnumerable < ChartDTO >>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
             }
         }
@@ -142,9 +154,24 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<IEnumerable<MonthlyReport>>.ErrorResponse("An error occurred while retrieving monthly report", ex.Message);
             }
         }
 
+        [HttpGet("report")]
+        public async Task<IActionResult> GetTransactionsReport()
+        {
+            try
+            {
+                var report = await _transactionService.GetTransactionsReportAsync();
+                return File(report.FileContents, report.ContentType, report.FileDownloadName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(new ApiResponse<string>(false, "An error occurred while generating the report", null, ex.Message));
+            }
+        }
     }
 }

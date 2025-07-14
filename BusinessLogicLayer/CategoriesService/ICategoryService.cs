@@ -1,5 +1,6 @@
 ﻿using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
 using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseManager.BusinessLayer.CategoriesService
 {
@@ -10,6 +11,6 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
         Task<bool> CreateCategoryAsync(CreateCategoryDTO newCategory);
         Task<bool> UpdateCategoryAsync(int id, UpdateCategoryDTO updatedCategory);
         Task<bool> DeleteCategoryAsync(int categoryId);
-        Task<IEnumerable<Category>> GetCategoriesByWalletIdAsync(int walletId);
+        Task<FileContentResult> GetCategoriesReportAsync();
     }
 }

@@ -2,7 +2,9 @@
 using ExpenseManager.BusinessLayer.UserService.UserDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.UserRepository;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace ExpenseManager.BusinessLayer.UserService
 {
@@ -11,7 +13,6 @@ namespace ExpenseManager.BusinessLayer.UserService
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
-        private DateTime date = DateTime.UtcNow;
 
         public UserService(IUserRepository userRepository, IMapper mapper, IConfiguration config)
         {
@@ -60,7 +61,7 @@ namespace ExpenseManager.BusinessLayer.UserService
         public async Task<UsersDTO> CreateUserAsync(CreateUserDTO newUser)
         {
             var user = _mapper.Map<User>(newUser);
-            user.CreateDate = date;
+            user.CreateDate = DateTime.Now;
             await _userRepository.Add(user);
             var createdUser= _mapper.Map<UsersDTO>(user);
             return createdUser;
@@ -77,7 +78,7 @@ namespace ExpenseManager.BusinessLayer.UserService
                 throw new Exception($"User with ID {user.Id} not found or could not be updated.");
             }
             _mapper.Map(updatedUser, existingUser);
-            existingUser.UpdateDate = date;
+            existingUser.UpdateDate = DateTime.Now;
 
             await _userRepository.Update(existingUser);
             return true;
@@ -92,6 +93,33 @@ namespace ExpenseManager.BusinessLayer.UserService
             }
             await _userRepository.Delete(user);
             return true;
+        }
+
+        public async Task<FileContentResult> GetUsersReportAsync()
+        {
+            string[] columnNames = { "Id", "Name", "Email", "CreateDate", "UpdateBy", "UpdateDate" };
+            var users = await _userRepository.GetAll();
+            if (users == null || !users.Any())
+            {
+                throw new InvalidOperationException("No users found for the report.");
+            }
+
+            string csv = string.Empty;
+            foreach (string columnName in columnNames)
+            {
+                csv += $"{columnName},";
+            }
+            csv += "\r\n";
+
+            foreach (var user in users)
+            {
+                csv += $"{user.Id},{user.Name},{user.Email},{user.CreateDate},{user.UpdateByNavigation?.Name},{user.UpdateDate}\r\n";
+            }
+            byte[] bytes = Encoding.ASCII.GetBytes(csv);
+            return new FileContentResult(bytes, "text/csv")
+            {
+                FileDownloadName = "UsersReport.csv"
+            };
         }
     }
 }

@@ -3,9 +3,12 @@ using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
+using System.Text;
 
 namespace ExpenseManager.BusinessLayer.CategoriesService
 {
@@ -15,7 +18,6 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor; 
-        private DateTime date = DateTime.UtcNow;
 
         public CategoryService(ICategoryRepository categoryRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
         {
@@ -94,7 +96,7 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
                 throw new ArgumentNullException(nameof(newCategory), "Category cannot be null");
             }
             var category = _mapper.Map<Category>(newCategory);
-            category.CreateDate = date;
+            category.CreateDate = DateTime.Now;
             category.CreateBy = int.Parse(userId);
 
             await _categoryRepository.Add(category);
@@ -110,7 +112,7 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             {
                 throw new InvalidOperationException("Category not found or you do not have permission to update this category.");
             }
-            category.UpdateDate = date;
+            category.UpdateDate = DateTime.Now;
             _mapper.Map(updatedCategory, category);
             await _categoryRepository.Update(category);
             return true;
@@ -127,9 +129,32 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             await _categoryRepository.Delete(category);
             return true;
         }
-        public Task<IEnumerable<Category>> GetCategoriesByWalletIdAsync(int walletId)
+
+        public async Task<FileContentResult> GetCategoriesReportAsync()
         {
-            throw new NotImplementedException();
+            string[] columnNames = { "Id", "Name", "Type", "Limit", "Color", "CreateBy", "CreateDate", "UpdateBy", "UpdateDate"};
+            var categories = await _categoryRepository.GetAllCategoriesAsync();
+            if (categories == null || !categories.Any())
+            {
+                throw new InvalidOperationException("No categories found for the report.");
+            }
+
+            string csv = string.Empty;
+            foreach (string columnName in columnNames)
+            {
+                csv += $"{columnName},";
+            }
+            csv += "\r\n";
+
+            foreach (var category in categories)
+            {
+                csv += $"{category.Id},{category.Name},{category.Type},{category.Limit},{category.Color},{category.CreateByNavigation?.Name},{category.CreateDate},{category.UpdateByNavigation?.Name},{category.UpdateDate}\r\n";
+            }
+            byte[] bytes = Encoding.ASCII.GetBytes(csv);
+            return new FileContentResult(bytes, "text/csv")
+            {
+                FileDownloadName = "CategoriesReport.csv"
+            };
         }
     }
 }

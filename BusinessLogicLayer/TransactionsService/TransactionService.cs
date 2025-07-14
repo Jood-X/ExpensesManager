@@ -3,11 +3,14 @@ using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
+using ExpenseManager.DataAccessLayer.Interfaces.RecurringsRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
+using System.Text;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace ExpenseManager.BusinessLayer.TransactionsService
@@ -17,16 +20,17 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         private readonly ITransactionRepository _transactionRepository;
         private readonly IWalletRepository _walletRepository;
         private readonly ICategoryRepository _categoryRepository;
+        private readonly IRecurringRepository _recurringRepository;
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private DateTime date = DateTime.UtcNow;
 
-        public TransactionService(ITransactionRepository transactionRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+        public TransactionService(ITransactionRepository transactionRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IRecurringRepository recurringRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
         {
             _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(TransactionRepository));
             _walletRepository = walletRepository ?? throw new ArgumentNullException(nameof(walletRepository));
             _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
+            _recurringRepository = recurringRepository ?? throw new ArgumentNullException(nameof(recurringRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _httpContextAccessor = httpContextAccessor;
@@ -119,7 +123,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             }
 
             var transaction = _mapper.Map<Transaction>(newTransaction);
-            transaction.CreateDate = date;
+            transaction.CreateDate = DateTime.Now;
             transaction.CreateBy = int.Parse(userId);
             await _transactionRepository.Add(transaction);
             wallet.Balance -= newTransaction.Amount;
@@ -136,7 +140,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             {
                 throw new InvalidOperationException("Transaction not found or you do not have permission to update this transaction.");
             }
-            transaction.UpdateDate = date;
+            transaction.UpdateDate = DateTime.Now;
             _mapper.Map(updatedTransaction, transaction);
             await _transactionRepository.Update(transaction);
             return true;
@@ -274,5 +278,50 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             return groupedByMonth;
         }
 
+        public async Task<FileContentResult> GetTransactionsReportAsync()
+        {
+            string[] columnNames = { "Id", "Amount", "Category", "Wallet", "Note", "CreateBy", "CreateDate", "Amount", "UpdateDate" };
+            var transactions = await _transactionRepository.GetAll();
+            if (transactions == null || !transactions.Any())
+            {
+                throw new InvalidOperationException("No transaction found for the report.");
+            }
+
+            string csv = string.Empty;
+            foreach (string columnName in columnNames)
+            {
+                csv += $"{columnName},";
+            }
+            csv += "\r\n";
+
+            foreach (var transaction in transactions)
+            {
+                csv += $"{transaction.Id},{transaction.Amount},{transaction.Category?.Name},{transaction.Wallet?.Name}, {transaction.Note},{transaction.CreateByNavigation?.Name}, {transaction.CreateDate},{transaction.UpdateByNavigation?.Name},{transaction.UpdateDate}\r\n";
+            }
+            byte[] bytes = Encoding.ASCII.GetBytes(csv);
+            return new FileContentResult(bytes, "text/csv")
+            {
+                FileDownloadName = "TransactionsReport.csv"
+            };
+        }
+
+        public async Task CreateTransactionFromRecurring(int recurringId)
+        {
+            var recurring = await _recurringRepository.GetRecurringByIdAsync(recurringId);
+            if (recurring == null)
+            {
+                throw new InvalidOperationException("Recurring transaction not found or access denied.");
+            }
+            var newTransaction = new Transaction
+            {
+                CreateBy = recurring.CreateBy,
+                CreateDate = DateTime.Now,
+                Amount = recurring.Amount,
+                CategoryId = recurring.CategoryId,
+                WalletId = recurring.WalletId,
+                Note = $"Recurring: {recurring.Id}",
+            };
+            await _transactionRepository.Add(newTransaction);
+        }
     }
 }

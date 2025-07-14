@@ -15,10 +15,14 @@ namespace ExpenseManager.Api.Controllers
     {
         private IGenericRepo<Recurring> genericRepo;
         private readonly IRecurringsService _recurringsService;
-        public RecurringsController(IRecurringsService recurringsService, IGenericRepo<Recurring> repo)
+        private readonly ILogger<RecurringsController> _logger;
+
+        public RecurringsController(IRecurringsService recurringsService, IGenericRepo<Recurring> repo, ILogger<RecurringsController> logger)
         {
             _recurringsService = recurringsService ?? throw new ArgumentNullException(nameof(recurringsService));
             genericRepo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to RecurringsController");
         }
 
         [HttpGet]
@@ -31,6 +35,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<RecurringPagingDTO>.ErrorResponse("An error occurred while retrieving recurrings", ex.Message);
             }
         }
@@ -50,7 +55,7 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("{intervalValue}")]
         public async Task<ApiResponse<string>> Create(CreateRecurringDTO newRecurring)
         {
             try
@@ -60,6 +65,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while creating the recurring", ex.Message);
             }
         }
@@ -74,6 +80,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the recurring", ex.Message);
             }
         }
@@ -88,7 +95,23 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while deleting the recurring", ex.Message);
+            }
+        }
+
+        [HttpGet("report")]
+        public async Task<IActionResult> GetCategoriesReport()
+        {
+            try
+            {
+                var report = await _recurringsService.GetRecurringsReportAsync();
+                return File(report.FileContents, report.ContentType, report.FileDownloadName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(new ApiResponse<string>(false, "An error occurred while generating the report", null, ex.Message));
             }
         }
     }

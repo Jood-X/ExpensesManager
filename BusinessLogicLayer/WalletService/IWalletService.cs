@@ -1,6 +1,7 @@
-﻿using System;
+﻿using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
 using ExpenseManager.DataAccessLayer.Entities;
-using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
+using Microsoft.AspNetCore.Mvc;
+using System;
 
 namespace ExpenseManager.BusinessLayer.WalletService
 {
@@ -11,5 +12,6 @@ namespace ExpenseManager.BusinessLayer.WalletService
         Task<bool> CreateWalletAsync(CreateWalletDTO newWallet);
         Task<bool> UpdateWalletAsync(UpdateWalletDTO updateWallet);
         Task<bool> DeleteWalletAsync(int walletId);
+        Task<FileContentResult> GetWalletsReportAsync();
     }
 }

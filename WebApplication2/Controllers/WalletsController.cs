@@ -1,9 +1,10 @@
 ﻿using ExpenseManager.BusinessLayer.WalletService;
 using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
+using ExpenseManager.DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using ExpenseManager.DataAccessLayer.Entities;
+using WebApplication2.Controllers;
 
 namespace ExpenseManager.Api.Controllers
 {
@@ -14,9 +15,13 @@ namespace ExpenseManager.Api.Controllers
     public class WalletsController : ControllerBase
     {
         private readonly IWalletService _walletService;
-        public WalletsController(IWalletService walletService)
+        private readonly ILogger<WalletsController> _logger;
+
+        public WalletsController(IWalletService walletService, ILogger<WalletsController> logger)
         {
             _walletService = walletService;
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to WalletsController");
         }
 
         [HttpGet]
@@ -29,6 +34,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<WalletPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
             }
         }
@@ -44,6 +50,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<WalletsDTO>.ErrorResponse("An error occurred while retrieving the user", ex.Message);
             }
         }
@@ -58,6 +65,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while retrieving users", ex.Message);
             }
         }
@@ -72,6 +80,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the wallet", ex.Message);
             }
         }
@@ -86,8 +95,24 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while deleting the wallet", ex.Message);
             }          
+        }
+
+        [HttpGet("report")]
+        public async Task<IActionResult> GetWalletsReport()
+        {
+            try
+            {
+                var report = await _walletService.GetWalletsReportAsync();
+                return File(report.FileContents, report.ContentType, report.FileDownloadName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(new ApiResponse<string>(false, "An error occurred while generating the report", null, ex.Message));
+            }
         }
     }
 }

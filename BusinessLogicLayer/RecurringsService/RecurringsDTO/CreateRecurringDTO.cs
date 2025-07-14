@@ -10,6 +10,8 @@
 
         public string RepeatInterval { get; set; } = null!;
 
+        public int IntervalValue { get; set; }
+
         public DateTime StartDate { get; set; }
 
         public DateTime EndDate { get; set; }

@@ -1,6 +1,7 @@
-﻿using ExpenseManager.DataAccessLayer.Entities;
-using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
+﻿using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
+using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseManager.BusinessLayer.TransactionsService
 {
@@ -15,5 +16,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         Task<List<TopCategory>> GetTopSpendingCategories(TopSpendingsFilter filter);
         Task<IEnumerable<ChartDTO>> GetTransactionsChartData(string type);
         Task<IEnumerable<MonthlyReport>> GetMonthlyReport();
+        Task<FileContentResult> GetTransactionsReportAsync();
+        Task CreateTransactionFromRecurring(int recurringId);
     }
 }

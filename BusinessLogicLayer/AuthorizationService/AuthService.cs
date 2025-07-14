@@ -50,7 +50,7 @@ namespace ExpenseManager.BusinessLayer.AuthorizationService
             user.Name = request.Name;
             user.Email = request.Email;
             user.Password = hashedPassword;
-            user.CreateDate = DateTime.UtcNow;
+            user.CreateDate = DateTime.Now;
             context.Users.Add(user);
             await context.SaveChangesAsync();
             return user;
@@ -87,7 +87,7 @@ namespace ExpenseManager.BusinessLayer.AuthorizationService
         {
             var refreshToken = GenerateRefreshToken();
             user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
             await context.SaveChangesAsync();
             return refreshToken;
         }

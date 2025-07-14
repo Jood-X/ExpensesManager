@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using ExpenseManager.Api;
+using ExpenseManager.Api.Controllers;
 using ExpenseManager.BusinessLayer.CategoriesService;
 using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
 using ExpenseManager.BusinessLayer.UserService.UserDTO;
@@ -18,9 +19,13 @@ namespace WebApplication2.Controllers
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
-        public CategoriesController(ICategoryService categoryService)
+        private readonly ILogger<CategoriesController> _logger;
+
+        public CategoriesController(ICategoryService categoryService, ILogger<CategoriesController> logger)
         {
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to CategoriesController");
         }
 
         [HttpGet]
@@ -33,6 +38,7 @@ namespace WebApplication2.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<CategoryPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
             }
         }
@@ -47,6 +53,7 @@ namespace WebApplication2.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<CategoryDTO>.ErrorResponse("An error occurred while retrieving the category", ex.Message);
             }
         }
@@ -61,6 +68,7 @@ namespace WebApplication2.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while creating the category", ex.Message);
             }
         }
@@ -73,8 +81,9 @@ namespace WebApplication2.Controllers
                 await _categoryService.UpdateCategoryAsync(id, updatedCategory);
                 return ApiResponse<string>.SuccessResponse("Category Updated Successfully");
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the category", ex.Message);
             }
         }
@@ -89,7 +98,22 @@ namespace WebApplication2.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while deleting the category", ex.Message);
+            }
+        }
+        [HttpGet("report")]
+        public async Task<IActionResult> GetCategoriesReport()
+        {
+            try
+            {
+                var report = await _categoryService.GetCategoriesReportAsync();
+                return File(report.FileContents, report.ContentType, report.FileDownloadName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(new ApiResponse<string>(false, "An error occurred while generating the report", null, ex.Message));
             }
         }
     }

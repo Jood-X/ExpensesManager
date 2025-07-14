@@ -3,9 +3,11 @@ using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
+using System.Text;
 
 namespace ExpenseManager.BusinessLayer.WalletService
 {
@@ -15,7 +17,6 @@ namespace ExpenseManager.BusinessLayer.WalletService
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private DateTime date = DateTime.UtcNow;
 
         public WalletService(IWalletRepository walletRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
         {
@@ -90,7 +91,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
                 throw new ArgumentNullException("Wallet cannot be null");
             }
             var wallet = _mapper.Map<Wallet>(newWallet);
-            wallet.CreateDate = date;
+            wallet.CreateDate = DateTime.Now;
             wallet.CreateBy = int.Parse(userId);
             await _walletRepository.Add(wallet);
             return true;
@@ -106,7 +107,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
             {
                 throw new InvalidOperationException("Category not found or you do not have permission to update this category.");
             }
-            wallet.UpdateDate = date;
+            wallet.UpdateDate = DateTime.Now;
             _mapper.Map(updateWallet, wallet);
             await _walletRepository.Update(wallet);
             return true;
@@ -122,6 +123,33 @@ namespace ExpenseManager.BusinessLayer.WalletService
             }
             await _walletRepository.Delete(wallet);
             return true;
+        }
+
+        public async Task<FileContentResult> GetWalletsReportAsync()
+        {
+            string[] columnNames = { "Id", "Name", "Balance", "CreateBy", "CreateDate", "UpdateBy", "UpdateDate"};
+            var wallets = await _walletRepository.GetAll();
+            if (wallets == null || !wallets.Any())
+            {
+                throw new InvalidOperationException("No wallets found for the report.");
+            }
+
+            string csv = string.Empty;
+            foreach (string columnName in columnNames)
+            {
+                csv += $"{columnName},";
+            }
+            csv += "\r\n";
+
+            foreach (var wallet in wallets)
+            {
+                csv += $"{wallet.Id},{wallet.Name},{wallet.Balance}, {wallet.CreateByNavigation?.Name},{wallet.CreateDate},{wallet.UpdateByNavigation?.Name},{wallet.UpdateDate}\r\n";
+            }
+            byte[] bytes = Encoding.ASCII.GetBytes(csv);
+            return new FileContentResult(bytes, "text/csv")
+            {
+                FileDownloadName = "WalletsReport.csv"
+            };
         }
     }
 }
