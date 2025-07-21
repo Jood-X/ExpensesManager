@@ -18,10 +18,5 @@ namespace ExpenseManager.BusinessLayer.WalletService.WalletDTO
         
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public DateTime? UpdateDate { get; set; }
-
-        public static implicit operator WalletsDTO?(Wallet? v)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

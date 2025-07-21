@@ -100,15 +100,13 @@ namespace ExpenseManager.BusinessLayer.WalletService
         public async Task<bool> UpdateWalletAsync(UpdateWalletDTO updateWallet)
         {
             var userId = GetUserIdOrThrow();
-            var wallet = new Wallet();
-            _mapper.Map(updateWallet, wallet);
-            wallet = await _walletRepository.GetWalletByIdAsync(wallet.Id, userId);
+            var wallet = await _walletRepository.GetWalletByIdAsync(updateWallet.Id, userId);
             if (wallet == null || wallet.CreateBy.ToString() != userId)
             {
-                throw new InvalidOperationException("Category not found or you do not have permission to update this category.");
+                throw new InvalidOperationException("Wallet not found or you do not have permission to update this wallet.");
             }
-            wallet.UpdateDate = DateTime.Now;
             _mapper.Map(updateWallet, wallet);
+            wallet.UpdateDate = DateTime.Now;
             await _walletRepository.Update(wallet);
             return true;
         }
@@ -150,6 +148,16 @@ namespace ExpenseManager.BusinessLayer.WalletService
             {
                 FileDownloadName = "WalletsReport.csv"
             };
+        }
+
+        public async Task<IEnumerable<WalletUIDTO>> GetAllWalletsAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            var allWallets = await _walletRepository.GetAll();
+            var wallets = allWallets
+                .Where(w => w.CreateBy.ToString() == userId);
+            var result = wallets.Select(wallet => _mapper.Map<WalletUIDTO>(wallet)).ToList();
+            return result;
         }
     }
 }

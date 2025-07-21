@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
+using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using Microsoft.AspNetCore.Http;
@@ -103,17 +104,16 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             return true;
         }
 
-        public async Task<bool> UpdateCategoryAsync(int id, UpdateCategoryDTO updatedCategory)
+        public async Task<bool> UpdateCategoryAsync(UpdateCategoryDTO updatedCategory)
         {
             var userId = GetUserIdOrThrow();
-
-            var category = await _categoryRepository.GetCategoryByIdAsync(id);
+            var category = await _categoryRepository.GetCategoryByIdAsync(updatedCategory.Id);
             if (category == null || category.CreateBy.ToString() != userId)
             {
                 throw new InvalidOperationException("Category not found or you do not have permission to update this category.");
             }
-            category.UpdateDate = DateTime.Now;
             _mapper.Map(updatedCategory, category);
+            category.UpdateDate = DateTime.Now;
             await _categoryRepository.Update(category);
             return true;
         }
@@ -155,6 +155,16 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             {
                 FileDownloadName = "CategoriesReport.csv"
             };
+        }
+
+        public async Task<IEnumerable<CategoryUIDTO>> GetAllCategoriesAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            var allCategories = await _categoryRepository.GetAll();
+            var categories = allCategories
+                .Where(w => w.CreateBy.ToString() == userId);
+            var result = categories.Select(category => _mapper.Map<CategoryUIDTO>(category)).ToList();
+            return result;
         }
     }
 }

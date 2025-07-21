@@ -28,6 +28,7 @@ namespace ExpenseManager.BusinessLayer
             CreateMap<CategoryDTO, Category>();
             CreateMap<CreateCategoryDTO, Category>();
             CreateMap<UpdateCategoryDTO, Category>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<Category, CategoryUIDTO>();
 
             // Create maps between Transaction and TransactionDTO, CreateTransactionDTO, UpdateTransactionDTO
             CreateMap<Transaction, TransactionDTO>()
@@ -67,7 +68,7 @@ namespace ExpenseManager.BusinessLayer
             CreateMap<WalletsDTO, Wallet>();
             CreateMap<CreateWalletDTO, Wallet>();
             CreateMap<UpdateWalletDTO, Wallet>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
-
+            CreateMap<Wallet, WalletUIDTO>();
         }
 
     }

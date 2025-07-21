@@ -43,6 +43,21 @@ namespace WebApplication2.Controllers
             }
         }
 
+        [HttpGet("MyCategories")]
+        public async Task<ApiResponse<IEnumerable<CategoryUIDTO>>> GetAll()
+        {
+            try
+            {
+                var response = await _categoryService.GetAllCategoriesAsync();
+                return ApiResponse<IEnumerable<CategoryUIDTO>>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return ApiResponse<IEnumerable<CategoryUIDTO>>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<ApiResponse<CategoryDTO>> GetByID(int id)
         {
@@ -73,12 +88,12 @@ namespace WebApplication2.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<ApiResponse<string>> Update(int id, UpdateCategoryDTO updatedCategory)
+        [HttpPut]
+        public async Task<ApiResponse<string>> Update(UpdateCategoryDTO updatedCategory)
         {
             try
             {
-                await _categoryService.UpdateCategoryAsync(id, updatedCategory);
+                await _categoryService.UpdateCategoryAsync(updatedCategory);
                 return ApiResponse<string>.SuccessResponse("Category Updated Successfully");
             }
             catch (Exception ex)

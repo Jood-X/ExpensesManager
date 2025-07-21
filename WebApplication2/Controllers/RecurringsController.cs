@@ -55,7 +55,7 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
-        [HttpPost("{intervalValue}")]
+        [HttpPost]
         public async Task<ApiResponse<string>> Create(CreateRecurringDTO newRecurring)
         {
             try

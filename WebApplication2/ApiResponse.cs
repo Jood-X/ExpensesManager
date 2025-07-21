@@ -23,7 +23,7 @@ namespace ExpenseManager.Api
         }
         public static ApiResponse<T> ErrorResponse(string message = "Request Failed", string error = null)
         {
-            return new ApiResponse<T>(false, message, default, error);
+            return new ApiResponse<T>(false, message, default, "Error Found");
         }
     }
 }

@@ -1,4 +1,3 @@
-using ExpenseManager.Api;
 using ExpenseManager.BusinessLayer.AuthorizationService;
 using ExpenseManager.BusinessLayer.CategoriesService;
 using ExpenseManager.BusinessLayer.JobService;
@@ -7,7 +6,6 @@ using ExpenseManager.BusinessLayer.TransactionsService;
 using ExpenseManager.BusinessLayer.UserService;
 using ExpenseManager.BusinessLayer.WalletService;
 using ExpenseManager.DataAccessLayer.Data;
-using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.GenericRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.RecurringsRepository;
@@ -17,8 +15,6 @@ using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Hangfire;
 using HangfireBasicAuthenticationFilter;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -119,18 +115,17 @@ try
               .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
     });
     builder.Services.AddHangfireServer();
-
-    //Services from Identity Core
-    //builder.Services.AddIdentityApiEndpoints<IdentityUser>()
-    //                .AddEntityFrameworkStores<WalletManagerDbContext>();
-
-    //builder.Services.Configure<IdentityOptions>(options =>
-    //{
-    //    options.Password.RequireDigit = false;
-    //    options.Password.RequireLowercase = false;
-    //    options.Password.RequireUppercase = false;
-    //    options.User.RequireUniqueEmail = true;
-    //});
+    
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowAngularDev", policy =>
+        {
+            policy.WithOrigins("http://localhost:4200")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials(); 
+        });
+    });
 
     var app = builder.Build();
 
@@ -141,15 +136,10 @@ try
         app.UseSwaggerUI();
     }
 
-    //app.UseHttpsRedirection();
-
-    //#region Config. Cors
-    //app.UseCors(options => 
-    //    options.WithOrigins("")
-    //       .AllowAnyMethod()
-    //       .AllowAnyHeader());
-    //#endregion
-
+    //app.UseCors("AllowAngularDev");
+    app.UseCors(options => options.WithOrigins("http://localhost:4200")
+    .AllowAnyMethod()
+    .AllowAnyHeader());
 
     app.UseAuthentication();
 
@@ -171,42 +161,7 @@ try
 
     app.MapControllers();
 
-    // for angular
-    //app.MapGroup("/api")
-    //   .MapIdentityApi<IdentityUser>();
-    //app.MapPost("/api/signup", async(
-    //        UserManager<IdentityUser> userManager,
-    //        [FromBody] UserRegistrationModel userRegistrationModel
-    //    ) => 
-    //    {
-    //        IdentityUser user = new IdentityUser()
-    //        {
-    //            Email = userRegistrationModel.Email,
-    //            UserName = userRegistrationModel.FullName,
-    //        };
-    //        var result = await userManager.CreateAsync(user, userRegistrationModel.Password);
-    //        if(result.Succeeded)
-    //        {
-    //            return Results.Ok(new { message = "User registered successfully." });
-    //        }
-    //        else
-    //        {
-    //            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
-    //        }
-    //    });
-
-
     app.Run();
-
-    /*
-    public class UserRegistrationModel
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-
-        public string FullName { get; set; } = string.Empty;
-    }
-    */
 }
 catch (Exception ex)
 {

@@ -9,8 +9,9 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
         Task<CategoryPagingDTO> GetAllCategoriesAsync(string? searchTerm, int page = 1);
         Task<CategoryDTO> GetCategoryByIdAsync(int categoryId);
         Task<bool> CreateCategoryAsync(CreateCategoryDTO newCategory);
-        Task<bool> UpdateCategoryAsync(int id, UpdateCategoryDTO updatedCategory);
+        Task<bool> UpdateCategoryAsync(UpdateCategoryDTO updatedCategory);
         Task<bool> DeleteCategoryAsync(int categoryId);
         Task<FileContentResult> GetCategoriesReportAsync();
+        Task<IEnumerable<CategoryUIDTO>> GetAllCategoriesAsync();
     }
 }

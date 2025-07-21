@@ -3,6 +3,8 @@ using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Claims;
 using WebApplication2.Controllers;
 
@@ -25,7 +27,7 @@ namespace ExpenseManager.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ApiResponse<WalletPagingDTO>> GetAll(string? searchTerm, int page=1)
+        public async Task<ApiResponse<WalletPagingDTO>> GetAllPaging(string? searchTerm, int page=1)
         {
             try
             {
@@ -35,7 +37,22 @@ namespace ExpenseManager.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return ApiResponse<WalletPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+                return ApiResponse<WalletPagingDTO>.ErrorResponse("An error occurred while retrieving wallets", ex.Message);
+            }
+        }
+
+        [HttpGet("MyWallets")]
+        public async Task<ApiResponse<IEnumerable<WalletUIDTO>>> GetAll()
+        {
+            try
+            {
+                var response = await _walletService.GetAllWalletsAsync();
+                return ApiResponse<IEnumerable<WalletUIDTO>>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return ApiResponse<IEnumerable<WalletUIDTO>>.ErrorResponse("An error occurred while retrieving wallets", ex.Message);
             }
         }
 
@@ -70,8 +87,8 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<ApiResponse<string>> Update(int id, UpdateWalletDTO updatedWallet)
+        [HttpPut]
+        public async Task<ApiResponse<string>> Update(UpdateWalletDTO updatedWallet)
         {
             try
             {
