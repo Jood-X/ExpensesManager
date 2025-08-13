@@ -1,4 +1,5 @@
-﻿using ExpenseManager.BusinessLayer.TransactionsService;
+﻿using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
+using ExpenseManager.BusinessLayer.TransactionsService;
 using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer;
 using Microsoft.AspNetCore.Authorization;
@@ -39,6 +40,21 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
+        [HttpGet("MyTransaction")]
+        public async Task<ApiResponse<IEnumerable<TransactionUIDTO>>> GetAll()
+        {
+            try
+            {
+                var response = await _transactionService.GetAllTransactionsAsync();
+                return ApiResponse<IEnumerable<TransactionUIDTO>>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return ApiResponse<IEnumerable<TransactionUIDTO>>.ErrorResponse("An error occurred while retrieving recurrings", ex.Message);
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<ApiResponse<TransactionDTO>> GetByID(int id)
         {
@@ -69,18 +85,20 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<ApiResponse<string>> Update(int id, UpdateTransactionDTO updatedTrans)
+        [HttpPut()]
+        public async Task<ApiResponse<string>> Update(UpdateTransactionDTO updatedTrans)
         {
             try
             {
-                var result = await _transactionService.UpdateTransactionAsync(id, updatedTrans);
+                var result = await _transactionService.UpdateTransactionAsync(updatedTrans);
                 return ApiResponse<string>.SuccessResponse("Transaction Updated Successfully");
             }
             catch (Exception ex)
             {
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+
                 _logger.LogError(ex.Message);
-                return ApiResponse<string>.ErrorResponse("An error occurred while updating the transaction", ex.Message);
+                return ApiResponse<string>.ErrorResponse("An error occurred while updating the transaction", innerMessage);
             }
         }
 
@@ -100,17 +118,17 @@ namespace ExpenseManager.Api.Controllers
         }
 
         [HttpGet("TotalSpendings/{days}")]
-        public async Task<ApiResponse<string>> GetTotalSpendings(int days)
+        public async Task<ApiResponse<decimal>> GetTotalSpendings(int days)
         {
             try
             {
                 var totalSpendings = await _transactionService.GetSpendings(days);
-                return ApiResponse<string>.SuccessResponse(totalSpendings);
+                return ApiResponse<decimal>.SuccessResponse(totalSpendings);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return ApiResponse<string>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
+                return ApiResponse<decimal>.ErrorResponse("An error occurred while retrieving total spendings", ex.Message);
             }
         }
 
@@ -160,11 +178,11 @@ namespace ExpenseManager.Api.Controllers
         }
 
         [HttpGet("report")]
-        public async Task<IActionResult> GetTransactionsReport()
+        public async Task<IActionResult> GetTransactionsReport([FromQuery] TransactionFilter query)
         {
             try
             {
-                var report = await _transactionService.GetTransactionsReportAsync();
+                var report = await _transactionService.GetTransactionsReportAsync(query);
                 return File(report.FileContents, report.ContentType, report.FileDownloadName);
             }
             catch (Exception ex)

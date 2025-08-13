@@ -9,9 +9,9 @@ using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Text;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace ExpenseManager.BusinessLayer.TransactionsService
 {
@@ -24,8 +24,10 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<TransactionService> _logger;
 
-        public TransactionService(ITransactionRepository transactionRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IRecurringRepository recurringRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+        public TransactionService(ITransactionRepository transactionRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IRecurringRepository recurringRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor
+            , ILogger<TransactionService> logger)
         {
             _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(TransactionRepository));
             _walletRepository = walletRepository ?? throw new ArgumentNullException(nameof(walletRepository));
@@ -34,14 +36,19 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
-        private string GetUserIdOrThrow()
+        private int GetUserIdOrThrow()
         {
             var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
                 throw new UnauthorizedAccessException("User ID is missing from token.");
-            return userId;
+            if (!int.TryParse(userId, out var userIdInt))
+            {
+                throw new InvalidOperationException("User ID is not in a valid format.");
+            }
+            return userIdInt;
         }
 
         public async Task<TransactionPagingDTO> GetAllTransactionsAsync(TransactionFilter query)
@@ -56,14 +63,15 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             {
                 throw new InvalidOperationException("Page size configuration is invalid.");
             }
-            var totalUsersCount = await _transactionRepository.GetAllTransactionsCountAsync();
-            var pageCount = (int)Math.Ceiling(totalUsersCount / (double)pageResult);
 
             var userId = GetUserIdOrThrow();
-            var allTransactions = await _transactionRepository.GetAllTransactionsAsync(query);
-
-            var transaction = allTransactions
-                .Where(w => w.CreateBy.ToString() == userId);
+            var transaction = await _transactionRepository.GetAllTransactionsAsync(userId, query);
+            if (transaction == null)
+            {
+                throw new Exception("No transaction Found");
+            }
+            var totalCount = transaction.Count();
+            var pageCount = (int)Math.Ceiling(totalCount / (double)pageResult);
 
             transaction = transaction
                 .Skip((query.page - 1) * pageResult)
@@ -82,9 +90,9 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         public async Task<TransactionDTO> GetTransactionByIdAsync(int transactionId)
         {
             var userId = GetUserIdOrThrow();
-            var transaction = await _transactionRepository.GetTransactionByIdAsync(transactionId);
+            var transaction = await _transactionRepository.GetTransactionByIdAsync(userId, transactionId);
 
-            if (transaction == null || transaction.CreateBy.ToString() != userId)
+            if (transaction == null)
             {
                 throw new InvalidOperationException("Transaction not found.");
             }
@@ -124,25 +132,48 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
 
             var transaction = _mapper.Map<Transaction>(newTransaction);
             transaction.CreateDate = DateTime.Now;
-            transaction.CreateBy = int.Parse(userId);
+            transaction.CreateBy = userId;
             await _transactionRepository.Add(transaction);
-            wallet.Balance -= newTransaction.Amount;
+            if(transaction.Category.Type.ToLower() == "expense")
+            {
+                wallet.Balance -= newTransaction.Amount;
+            }
+            else
+            {
+                wallet.Balance += newTransaction.Amount;
+            }
             await _walletRepository.Update(wallet);
             return true;
         }
-        
-        public async Task<bool> UpdateTransactionAsync(int id, UpdateTransactionDTO updatedTransaction)
+
+        public async Task<bool> UpdateTransactionAsync(UpdateTransactionDTO updatedTransaction)
         {
             var userId = GetUserIdOrThrow();
 
-            var transaction = await _transactionRepository.GetTransactionByIdAsync(id);
-            if (transaction == null || transaction.CreateBy.ToString() != userId)
+            var transaction = await _transactionRepository.GetTransactionByIdAsync(userId, updatedTransaction.Id);
+            if (transaction == null)
             {
                 throw new InvalidOperationException("Transaction not found or you do not have permission to update this transaction.");
             }
-            transaction.UpdateDate = DateTime.Now;
+            decimal oldAmount = transaction.Amount;
+            decimal newAmount = (decimal)updatedTransaction.Amount;
             _mapper.Map(updatedTransaction, transaction);
-            await _transactionRepository.Update(transaction);
+            transaction.UpdateDate = DateTime.Now;
+            await _transactionRepository.Update(transaction);            
+            if (transaction.WalletId != null && updatedTransaction.Amount != null)
+            {
+                var wallet = await _walletRepository.GetWalletByIdAsync(transaction.WalletId, userId);
+                decimal difference = oldAmount - newAmount;
+                if (transaction.Category.Type.ToLower() == "expense")
+                {
+                    wallet.Balance += difference;
+                }
+                else
+                {
+                    wallet.Balance -= difference;
+                }
+                await _walletRepository.Update(wallet);
+            }
             return true;
         }
 
@@ -150,8 +181,8 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         {
             var userId = GetUserIdOrThrow();
 
-            var transaction = await _transactionRepository.GetTransactionByIdAsync(transactionId);
-            if (transaction == null || transaction.CreateBy.ToString() != userId)
+            var transaction = await _transactionRepository.GetTransactionByIdAsync(userId, transactionId);
+            if (transaction == null)
             {
                 throw new InvalidOperationException("Transaction not found or you do not have permission to delete this transaction.");
             }
@@ -159,7 +190,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             return true;
         }
                 
-        public async Task<string> GetSpendings(int days)
+        public async Task<decimal> GetSpendings(int days)
         {
             SpendingsFilter.Days day;
             if (days > 0 && days < 30)
@@ -180,10 +211,7 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             }
 
             var userId = GetUserIdOrThrow();
-            var allTransactions = await _transactionRepository.GetSpendings(day);
-            var transaction = allTransactions
-                .Where(w => w.CreateBy.ToString() == userId);
-
+            var transaction = await _transactionRepository.GetSpendings(userId, day);
             if (transaction == null)
             {
                 throw new InvalidOperationException("No transaction found.");
@@ -194,29 +222,24 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             {
                 totalSpendings += item.Amount;
             }
-            return $"Total spent for {days} days is: {totalSpendings}";
+            return totalSpendings;
         }
 
         public async Task<List<TopCategory>> GetTopSpendingCategories(TopSpendingsFilter filter)
         {
             var userId = GetUserIdOrThrow();
+            if(filter == null)
+            {
+                filter.Days = 30;
+                filter.TopN = 3;
+            }
             return await _transactionRepository.GetTopSpendingCategoriesAsync(userId, filter);
         }
 
         public async Task<IEnumerable<ChartDTO>> GetTransactionsChartData(string type)
         {
             var userId = GetUserIdOrThrow();
-            if (string.IsNullOrEmpty(userId))
-            {
-                throw new ArgumentNullException(nameof(userId), "User ID cannot be null or empty.");
-            }
-
-            if (!int.TryParse(userId, out var userIdInt))
-            {
-                throw new InvalidOperationException("User ID is not in a valid format.");
-            }
-
-            var chartData = await _transactionRepository.GetChartData(userIdInt, type);
+            var chartData = await _transactionRepository.GetChartData(userId, type);
             var labels = chartData[0] as List<string>;
             var data = chartData[1] as List<decimal>;
 
@@ -241,25 +264,16 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         public async Task<IEnumerable<MonthlyReport>> GetMonthlyReport()
         {
             var userId = GetUserIdOrThrow();
-
-            if (!int.TryParse(userId, out var userIdInt))
-            {
-                throw new InvalidOperationException("User ID is not in a valid format.");
-            }
-
-            var transactions = await _transactionRepository.GetAll();
+            var transactions = await _transactionRepository.GetAll(userId);
 
             if (transactions == null)
             {
                 throw new InvalidOperationException("No transactions found.");
             }
-
             var userTransactions = transactions
-                .Where(t => t.CreateBy == userIdInt && t.CreateDate.Year == DateTime.Now.Year)
-                .Where(t => t.Category != null) 
                 .OrderBy(t => t.CreateDate.Month)
                 .ToList();
-
+                        
             var groupedByMonth = userTransactions
                 .GroupBy(t => t.CreateDate.Month)
                 .Select(g =>
@@ -278,10 +292,11 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
             return groupedByMonth;
         }
 
-        public async Task<FileContentResult> GetTransactionsReportAsync()
+        public async Task<FileContentResult> GetTransactionsReportAsync(TransactionFilter query)
         {
+            var userId = GetUserIdOrThrow();
             string[] columnNames = { "Id", "Amount", "Category", "Wallet", "Note", "CreateBy", "CreateDate", "Amount", "UpdateDate" };
-            var transactions = await _transactionRepository.GetAll();
+            var transactions = await _transactionRepository.GetAllTransactionsAsync(userId, query); 
             if (transactions == null || !transactions.Any())
             {
                 throw new InvalidOperationException("No transaction found for the report.");
@@ -296,10 +311,10 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
 
             foreach (var transaction in transactions)
             {
-                csv += $"{transaction.Id},{transaction.Amount},{transaction.Category?.Name},{transaction.Wallet?.Name}, {transaction.Note},{transaction.CreateByNavigation?.Name}, {transaction.CreateDate},{transaction.UpdateByNavigation?.Name},{transaction.UpdateDate}\r\n";
+                csv += $"{transaction.Id},{transaction.Amount},{transaction.Category.Name},{transaction.Wallet.Name}, {transaction.Note},{transaction.CreateByNavigation?.Name}, {transaction.CreateDate},{transaction.UpdateByNavigation?.Name},{transaction.UpdateDate}\r\n";
             }
             byte[] bytes = Encoding.ASCII.GetBytes(csv);
-            return new FileContentResult(bytes, "text/csv")
+            return new FileContentResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             {
                 FileDownloadName = "TransactionsReport.csv"
             };
@@ -322,6 +337,14 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
                 Note = $"Recurring: {recurring.Id}",
             };
             await _transactionRepository.Add(newTransaction);
+        }
+
+        public async Task<IEnumerable<TransactionUIDTO>> GetAllTransactionsAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            var transactions = await _transactionRepository.GetAll(userId);
+            var result = transactions.Select(transaction => _mapper.Map<TransactionUIDTO>(transaction)).ToList();
+            return result;
         }
     }
 }

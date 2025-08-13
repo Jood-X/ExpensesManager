@@ -13,6 +13,6 @@ namespace ExpenseManager.BusinessLayer.WalletService
         Task<bool> CreateWalletAsync(CreateWalletDTO newWallet);
         Task<bool> UpdateWalletAsync(UpdateWalletDTO updateWallet);
         Task<bool> DeleteWalletAsync(int walletId);
-        Task<FileContentResult> GetWalletsReportAsync();
+        Task<FileContentResult> GetWalletsReportAsync(string? searchTerm);
     }
 }

@@ -11,7 +11,7 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
         Task<bool> CreateCategoryAsync(CreateCategoryDTO newCategory);
         Task<bool> UpdateCategoryAsync(UpdateCategoryDTO updatedCategory);
         Task<bool> DeleteCategoryAsync(int categoryId);
-        Task<FileContentResult> GetCategoriesReportAsync();
+        Task<FileContentResult> GetCategoriesReportAsync(string? searchTerm);
         Task<IEnumerable<CategoryUIDTO>> GetAllCategoriesAsync();
     }
 }

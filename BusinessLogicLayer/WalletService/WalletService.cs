@@ -4,7 +4,6 @@ using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using System.Text;
@@ -25,12 +24,16 @@ namespace ExpenseManager.BusinessLayer.WalletService
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _httpContextAccessor = httpContextAccessor;
         }
-        private string GetUserIdOrThrow()
+        private int GetUserIdOrThrow()
         {
-            var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Use IHttpContextAccessor to access the user
+            var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value; 
             if (string.IsNullOrEmpty(userId))
                 throw new UnauthorizedAccessException("User ID is missing from token.");
-            return userId;
+            if (!int.TryParse(userId, out var userIdInt))
+            {
+                throw new InvalidOperationException("User ID is not in a valid format.");
+            }
+            return userIdInt;
         }
 
         public async Task<WalletPagingDTO> GetAllWalletsAsync(string? searchTerm, int page = 1)
@@ -46,18 +49,20 @@ namespace ExpenseManager.BusinessLayer.WalletService
                 throw new InvalidOperationException("Page size configuration is invalid.");
             }
             var userId = GetUserIdOrThrow();
-            var totalWalletsCount = await _walletRepository.GetAllWalletsCountAsync(userId);
-            var pageCount = (int)Math.Ceiling(totalWalletsCount / (double)pageResult);
 
-            var allWallets = await _walletRepository.GetAllWalletsAsync(userId, page);
+            var allWallets = await _walletRepository.GetAllWalletsAsync(userId);
             var wallets = allWallets
-                .Where(w => w.CreateBy.ToString() == userId);
+                .Where(w => w.CreateBy == userId);
 
             if (searchTerm != null)
             {
                 searchTerm = searchTerm.ToLower();
                 wallets = wallets.Where(u => u.Name.ToLower().Contains(searchTerm));
             }
+            var totalWalletsCount = wallets.Count();
+
+            var pageCount = (int)Math.Ceiling(totalWalletsCount / (double)pageResult);
+
             wallets = wallets
                 .Skip((page - 1) * pageResult)
                 .Take(pageResult);
@@ -76,7 +81,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
             var userId = GetUserIdOrThrow();
             var wallet = await _walletRepository.GetWalletByIdAsync(walletId, userId);
 
-            if (wallet == null || wallet.CreateBy.ToString() != userId)
+            if (wallet == null || wallet.CreateBy != userId)
             {
                 throw new InvalidOperationException("Wallet not found.");
             }
@@ -92,7 +97,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
             }
             var wallet = _mapper.Map<Wallet>(newWallet);
             wallet.CreateDate = DateTime.Now;
-            wallet.CreateBy = int.Parse(userId);
+            wallet.CreateBy = userId;
             await _walletRepository.Add(wallet);
             return true;
         }
@@ -101,7 +106,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
         {
             var userId = GetUserIdOrThrow();
             var wallet = await _walletRepository.GetWalletByIdAsync(updateWallet.Id, userId);
-            if (wallet == null || wallet.CreateBy.ToString() != userId)
+            if (wallet == null || wallet.CreateBy != userId)
             {
                 throw new InvalidOperationException("Wallet not found or you do not have permission to update this wallet.");
             }
@@ -115,7 +120,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
         {
             var userId = GetUserIdOrThrow();
             var wallet = await _walletRepository.GetWalletByIdAsync(walletId, userId);
-            if (wallet == null || wallet.CreateBy.ToString() != userId)
+            if (wallet == null || wallet.CreateBy != userId)
             {
                 throw new InvalidOperationException("Wallet not found or you do not have permission to delete this wallet.");
             }
@@ -123,15 +128,21 @@ namespace ExpenseManager.BusinessLayer.WalletService
             return true;
         }
 
-        public async Task<FileContentResult> GetWalletsReportAsync()
+        public async Task<FileContentResult> GetWalletsReportAsync(string? searchTerm)
         {
+            var userId = GetUserIdOrThrow();
             string[] columnNames = { "Id", "Name", "Balance", "CreateBy", "CreateDate", "UpdateBy", "UpdateDate"};
             var wallets = await _walletRepository.GetAll();
+            wallets = wallets.Where(u => u.CreateBy == userId);
             if (wallets == null || !wallets.Any())
             {
                 throw new InvalidOperationException("No wallets found for the report.");
             }
-
+            if (searchTerm != null)
+            {
+                searchTerm = searchTerm.ToLower();
+                wallets = wallets.Where(u => u.Name.ToLower().Contains(searchTerm));
+            } 
             string csv = string.Empty;
             foreach (string columnName in columnNames)
             {
@@ -144,7 +155,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
                 csv += $"{wallet.Id},{wallet.Name},{wallet.Balance}, {wallet.CreateByNavigation?.Name},{wallet.CreateDate},{wallet.UpdateByNavigation?.Name},{wallet.UpdateDate}\r\n";
             }
             byte[] bytes = Encoding.ASCII.GetBytes(csv);
-            return new FileContentResult(bytes, "text/csv")
+            return new FileContentResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             {
                 FileDownloadName = "WalletsReport.csv"
             };
@@ -155,7 +166,7 @@ namespace ExpenseManager.BusinessLayer.WalletService
             var userId = GetUserIdOrThrow();
             var allWallets = await _walletRepository.GetAll();
             var wallets = allWallets
-                .Where(w => w.CreateBy.ToString() == userId);
+                .Where(w => w.CreateBy == userId);
             var result = wallets.Select(wallet => _mapper.Map<WalletUIDTO>(wallet)).ToList();
             return result;
         }

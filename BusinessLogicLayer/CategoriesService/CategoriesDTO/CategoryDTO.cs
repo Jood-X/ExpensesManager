@@ -4,6 +4,7 @@ namespace ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO
 {
     public class CategoryDTO
     {
+        public int Id { get; set; }
         public string Name { get; set; } = null!;
 
         public string CreatedBy { get; set; } = null!;

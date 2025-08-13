@@ -8,8 +8,8 @@ namespace ExpenseManager.DataAccessLayer
 {
     public class TopSpendingsFilter
     {
-        public int Days { get; set; }
-        public int TopN { get; set; }
+        public int Days { get; set; } = 30;
+        public int TopN { get; set; } = 3;
 
     }
 }

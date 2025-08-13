@@ -10,13 +10,14 @@ namespace ExpenseManager.BusinessLayer.TransactionsService
         Task<TransactionPagingDTO> GetAllTransactionsAsync(TransactionFilter query);
         Task<TransactionDTO> GetTransactionByIdAsync(int transactionId);
         Task<bool> CreateTransactionAsync(CreateTransactionDTO newTransaction);
-        Task<bool> UpdateTransactionAsync(int id, UpdateTransactionDTO updatedTransaction);
+        Task<bool> UpdateTransactionAsync(UpdateTransactionDTO updatedTransaction);
         Task<bool> DeleteTransactionAsync(int transactionId);
-        Task <string> GetSpendings(int days);
+        Task <decimal> GetSpendings(int days);
         Task<List<TopCategory>> GetTopSpendingCategories(TopSpendingsFilter filter);
         Task<IEnumerable<ChartDTO>> GetTransactionsChartData(string type);
         Task<IEnumerable<MonthlyReport>> GetMonthlyReport();
-        Task<FileContentResult> GetTransactionsReportAsync();
+        Task<FileContentResult> GetTransactionsReportAsync(TransactionFilter query);
         Task CreateTransactionFromRecurring(int recurringId);
+        Task<IEnumerable<TransactionUIDTO>> GetAllTransactionsAsync();
     }
 }

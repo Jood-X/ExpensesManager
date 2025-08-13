@@ -39,7 +39,7 @@ namespace WebApplication2.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return ApiResponse<CategoryPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+                return ApiResponse<CategoryPagingDTO>.ErrorResponse("An error occurred while retrieving categories", ex.Message);
             }
         }
 
@@ -54,7 +54,7 @@ namespace WebApplication2.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return ApiResponse<IEnumerable<CategoryUIDTO>>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+                return ApiResponse<IEnumerable<CategoryUIDTO>>.ErrorResponse("An error occurred while retrieving categories", ex.Message);
             }
         }
 
@@ -118,11 +118,11 @@ namespace WebApplication2.Controllers
             }
         }
         [HttpGet("report")]
-        public async Task<IActionResult> GetCategoriesReport()
+        public async Task<IActionResult> GetCategoriesReport(string? searchTerm)
         {
             try
             {
-                var report = await _categoryService.GetCategoriesReportAsync();
+                var report = await _categoryService.GetCategoriesReportAsync(searchTerm);
                 return File(report.FileContents, report.ContentType, report.FileDownloadName);
             }
             catch (Exception ex)

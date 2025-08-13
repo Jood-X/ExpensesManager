@@ -42,7 +42,11 @@ namespace ExpenseManager.BusinessLayer
                     opt => opt.MapFrom(src => src.Wallet != null ? src.Wallet.Name : ""));
             CreateMap<TransactionDTO, Transaction>();
             CreateMap<CreateTransactionDTO, Transaction>();
-            CreateMap<UpdateTransactionDTO, Transaction>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<UpdateTransactionDTO, Transaction>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) =>
+                    srcMember != null &&
+                    !(srcMember is int value && value == 0)));
+            CreateMap<Transaction, TransactionUIDTO>();
 
             // Create maps between RecurringExpense and RecurringExpenseDTO, CreateRecurringExpenseDTO, UpdateRecurringExpenseDTO
             CreateMap<Recurring, RecurringExpenseDTO>()
@@ -57,6 +61,7 @@ namespace ExpenseManager.BusinessLayer
             CreateMap<RecurringExpenseDTO, Recurring>();
             CreateMap<CreateRecurringDTO, Recurring>();
             CreateMap<UpdateRecurringDTO, Recurring>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<Recurring, RecurringUIDTO>();
 
             // Create maps between Wallet and WalletDTO, CreateWalletDTO, UpdateWalletDTO
             CreateMap<Wallet, WalletsDTO>()

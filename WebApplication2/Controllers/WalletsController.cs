@@ -118,11 +118,11 @@ namespace ExpenseManager.Api.Controllers
         }
 
         [HttpGet("report")]
-        public async Task<IActionResult> GetWalletsReport()
+        public async Task<IActionResult> GetWalletsReport(string? searchTerm)
         {
             try
             {
-                var report = await _walletService.GetWalletsReportAsync();
+                var report = await _walletService.GetWalletsReportAsync(searchTerm);
                 return File(report.FileContents, report.ContentType, report.FileDownloadName);
             }
             catch (Exception ex)

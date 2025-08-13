@@ -26,13 +26,14 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
             return base.Count();
         }
 
-        public async Task<IEnumerable<Transaction>> GetAllTransactionsAsync(TransactionFilter query)
+        public async Task<IEnumerable<Transaction>> GetAllTransactionsAsync(int userId, TransactionFilter query)
         {
             var transactions = _context.Transactions
                 .Include(t => t.Wallet)
                 .Include(t => t.Category)
                 .Include(c => c.CreateByNavigation)
                 .Include(c => c.UpdateByNavigation)
+                .Where(w => w.CreateBy == userId)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(query.Keyword))
@@ -40,33 +41,41 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
                 transactions = transactions.Where(t => t.Note.Contains(query.Keyword) ||
                                                        t.Category.Name.Contains(query.Keyword));
             }
-            if (query.Date!= null)
+            if (query.DateFrom!= null || query.DateTo!= null)
             {
-                transactions = transactions.Where(t => t.CreateDate.Date == query.Date);
+                transactions = transactions.Where(t => t.CreateDate.Date >= query.DateFrom && t.CreateDate.Date <= query.DateTo);
             }
             if (query.CategoryId != null)
             {
                 transactions = transactions.Where(t => t.CategoryId == query.CategoryId);
             }
+            if (query.WalletId != null)
+            {
+                transactions = transactions.Where(t => t.WalletId == query.WalletId);
+            }
 
             return await transactions.ToListAsync();
         }
 
-        public async Task<Transaction?> GetTransactionByIdAsync(int transactionId)
+        public async Task<Transaction?> GetTransactionByIdAsync(int userId,int transactionId)
         {
             var transaction = await _context.Transactions
                 .Include(c => c.CreateByNavigation)
+                .Include(t => t.Wallet)
+                .Include(t => t.Category)
+                .Where(w => w.CreateBy == userId)
                 .FirstOrDefaultAsync(c => c.Id == transactionId);
             return transaction;
         }
 
-        public async Task<IEnumerable<Transaction>> GetSpendings(SpendingsFilter.Days days)
+        public async Task<IEnumerable<Transaction>> GetSpendings(int userId, SpendingsFilter.Days days)
         {
             var transactions = _context.Transactions
                 .Include(t => t.Wallet)
                 .Include(t => t.Category)
                 .Include(c => c.CreateByNavigation)
                 .Include(c => c.UpdateByNavigation)
+                .Where(w => w.CreateBy == userId && w.Category.Type.ToLower() == "expense")
                 .AsQueryable();
 
             switch (days)
@@ -88,13 +97,14 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
             return await transactions.ToListAsync();
         }
 
-        public async Task<List<TopCategory>> GetTopSpendingCategoriesAsync(string userId, TopSpendingsFilter filter)
+        public async Task<List<TopCategory>> GetTopSpendingCategoriesAsync(int userId, TopSpendingsFilter filter)
         {
-            var date = DateTime.UtcNow.AddDays(-filter.Days);
+            var date = DateTime.Now.AddDays(-filter.Days);
 
             var topCategories = await _context.Transactions
                 .Where(t => t.CreateDate >= date &&
-                            t.Category.Type.ToLower() == "expense")
+                            t.Category.Type.ToLower() == "expense"&&
+                            t.CreateBy==userId)
                 .GroupBy(t => new { t.CategoryId, t.Category.Name })
                 .Select(g => new TopCategory
                 {
@@ -111,8 +121,7 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
         public async Task<List<object>> GetChartData(int userId, string type)
         {
             List<object> chartData = new List<object>();
-            List<Transaction> transactions = (await GetAll()).Where(t => t.CreateBy == userId 
-                                            && t.Category.Type.ToLower() == type.ToLower()).ToList();
+            List<Transaction> transactions = (await GetAll(userId)).Where(t => t.Category.Type.ToLower() == type.ToLower()).ToList();
             
             if (transactions == null || !transactions.Any())
             {
@@ -137,13 +146,14 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository
             return chartData;
         }
 
-        public async Task <List<Transaction>> GetAll()
+        public async Task <List<Transaction>> GetAll(int userId)
         {
             return await _context.Transactions
                 .Include(t => t.Wallet)
                 .Include(t => t.Category)
                 .Include(c => c.CreateByNavigation)
                 .Include(c => c.UpdateByNavigation)
+                .Where(c=> c.CreateBy == userId)
                 .ToListAsync();
         }
     }

@@ -22,6 +22,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using NLog;
 using NLog.Web;
+using ExpenseManager.BusinessLayer.EmailService;
 
 var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 logger.Debug("init main");
@@ -107,6 +108,8 @@ try
     builder.Services.AddScoped<IWalletService, WalletService>();
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IJobService, JobService>();
+    builder.Services.AddScoped<IEmailSender, EmailSender>();
+
 
     builder.Services.AddHangfire(config =>
     {
@@ -126,6 +129,10 @@ try
                   .AllowCredentials(); 
         });
     });
+
+    builder.Services.AddSingleton(
+        builder.Configuration.GetSection("EmailConfiguration")
+        .Get<EmailConfiguration>());
 
     var app = builder.Build();
 

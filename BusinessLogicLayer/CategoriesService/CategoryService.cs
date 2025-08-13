@@ -1,12 +1,9 @@
 ﻿using AutoMapper;
 using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
-using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using System.Text;
@@ -48,20 +45,22 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             {
                 throw new InvalidOperationException("Page size configuration is invalid.");
             }
-            var totalUsersCount = await _categoryRepository.GetAllCategoriesCount();
-            var pageCount = (int)Math.Ceiling(totalUsersCount / (double)pageResult);
 
             var userId = GetUserIdOrThrow();
             var allCategories = await _categoryRepository.GetAllCategoriesAsync(); 
 
             var categories = allCategories
-                .Where(w => w.CreateBy.ToString() == userId);
+                .Where(w => w.CreateBy.ToString() == userId || w.CreateBy == null);
 
             if (searchTerm != null)
             {
                 searchTerm = searchTerm.ToLower();
                 categories = categories.Where(u => u.Name.ToLower().Contains(searchTerm));
             }
+
+            var totalCount = categories.Count();
+            var pageCount = (int)Math.Ceiling(totalCount / (double)pageResult);
+
             categories = categories
                 .Skip((page - 1) * pageResult)
                 .Take(pageResult);
@@ -130,13 +129,24 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             return true;
         }
 
-        public async Task<FileContentResult> GetCategoriesReportAsync()
+        public async Task<FileContentResult> GetCategoriesReportAsync(string? searchTerm)
         {
+            var userId = GetUserIdOrThrow();
+
             string[] columnNames = { "Id", "Name", "Type", "Limit", "Color", "CreateBy", "CreateDate", "UpdateBy", "UpdateDate"};
             var categories = await _categoryRepository.GetAllCategoriesAsync();
             if (categories == null || !categories.Any())
             {
                 throw new InvalidOperationException("No categories found for the report.");
+            }
+
+            categories = categories
+                .Where(w => w.CreateBy.ToString() == userId || w.CreateBy == null);
+
+            if (searchTerm != null)
+            {
+                searchTerm = searchTerm.ToLower();
+                categories = categories.Where(u => u.Name.ToLower().Contains(searchTerm));
             }
 
             string csv = string.Empty;
@@ -151,7 +161,7 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
                 csv += $"{category.Id},{category.Name},{category.Type},{category.Limit},{category.Color},{category.CreateByNavigation?.Name},{category.CreateDate},{category.UpdateByNavigation?.Name},{category.UpdateDate}\r\n";
             }
             byte[] bytes = Encoding.ASCII.GetBytes(csv);
-            return new FileContentResult(bytes, "text/csv")
+            return new FileContentResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             {
                 FileDownloadName = "CategoriesReport.csv"
             };

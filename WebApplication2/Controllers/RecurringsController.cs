@@ -1,4 +1,5 @@
-﻿using ExpenseManager.BusinessLayer.RecurringsService;
+﻿using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
+using ExpenseManager.BusinessLayer.RecurringsService;
 using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.GenericRepository;
@@ -39,7 +40,22 @@ namespace ExpenseManager.Api.Controllers
                 return ApiResponse<RecurringPagingDTO>.ErrorResponse("An error occurred while retrieving recurrings", ex.Message);
             }
         }
-        
+
+        [HttpGet("MyRecurring")]
+        public async Task<ApiResponse<IEnumerable<RecurringUIDTO>>> GetAll()
+        {
+            try
+            {
+                var response = await _recurringsService.GetAllRecurringsAsync();
+                return ApiResponse<IEnumerable<RecurringUIDTO>>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return ApiResponse<IEnumerable<RecurringUIDTO>>.ErrorResponse("An error occurred while retrieving recurrings", ex.Message);
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<ApiResponse<RecurringExpenseDTO>> GetByID(int id)
         {
@@ -70,12 +86,12 @@ namespace ExpenseManager.Api.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<ApiResponse<string>> Update(int id, UpdateRecurringDTO updatedRecurring)
+        [HttpPut]
+        public async Task<ApiResponse<string>> Update(UpdateRecurringDTO updatedRecurring)
         {
             try
             {
-                await _recurringsService.UpdateRecurringAsync(id, updatedRecurring);
+                await _recurringsService.UpdateRecurringAsync(updatedRecurring);
                 return ApiResponse<string>.SuccessResponse("Recurring Updated Successfully");
             }
             catch (Exception ex)

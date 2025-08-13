@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
+using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
 using ExpenseManager.BusinessLayer.JobService;
 using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
-using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.RecurringsRepository;
@@ -10,14 +10,8 @@ using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
-using static ExpenseManager.BusinessLayer.JobService.JobService;
-using static ExpenseManager.BusinessLayer.RecurringsService.RecurringsService;
 
 namespace ExpenseManager.BusinessLayer.RecurringsService
 {
@@ -61,14 +55,14 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             {
                 throw new InvalidOperationException("Page size configuration is invalid.");
             }
-            var totalUsersCount = await _recurringRepository.GetAllRecurringsCountAsync();
-            var pageCount = (int)Math.Ceiling(totalUsersCount / (double)pageResult);
-
             var userId = GetUserIdOrThrow();
             var allRecurrings = await _recurringRepository.GetAllRecurringsAsync();
 
             var recurrings = allRecurrings
                 .Where(w => w.CreateBy.ToString() == userId);
+
+            var totalCount = recurrings.Count();
+            var pageCount = (int)Math.Ceiling(totalCount / (double)pageResult);
 
             recurrings = recurrings
                 .Skip((page - 1) * pageResult)
@@ -104,7 +98,7 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             {
                 throw new ArgumentNullException(nameof(newRecurring), "Recurring cannot be null");
             }
-            var wallet = await _walletRepository.GetWalletByIdAsync(newRecurring.WalletId, userId);
+            var wallet = await _walletRepository.GetWalletByIdAsync(newRecurring.WalletId, int.Parse(userId));
             if (wallet == null)
             {
                 throw new InvalidOperationException("Wallet not found or access denied.");
@@ -138,17 +132,17 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             return true;
         }
 
-        public async Task<bool> UpdateRecurringAsync(int id, UpdateRecurringDTO updateRecurring)
+        public async Task<bool> UpdateRecurringAsync(UpdateRecurringDTO updateRecurring)
         {
             var userId = GetUserIdOrThrow();
 
-            var recurring = await _recurringRepository.GetRecurringByIdAsync(id);
+            var recurring = await _recurringRepository.GetRecurringByIdAsync(updateRecurring.Id);
             if (recurring == null || recurring.CreateBy.ToString() != userId)
             {
                 throw new InvalidOperationException("Recurring not found or you do not have permission to update this recurring.");
             }
-            recurring.UpdateDate = DateTime.Now;
             _mapper.Map(updateRecurring, recurring);
+            recurring.UpdateDate = DateTime.Now;
             await _recurringRepository.Update(recurring);
             return true;
         }
@@ -191,6 +185,16 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             {
                 FileDownloadName = "RecurringsReport.csv"
             };
+        }
+
+        public async Task<IEnumerable<RecurringUIDTO>> GetAllRecurringsAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            var allRecurrings = await _recurringRepository.GetAll();
+            var recurrings = allRecurrings
+                .Where(w => w.CreateBy.ToString() == userId);
+            var result = recurrings.Select(recurring => _mapper.Map<RecurringUIDTO>(recurring)).ToList();
+            return result;
         }
     }
 }

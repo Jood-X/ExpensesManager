@@ -9,9 +9,9 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
         Task<RecurringPagingDTO> GetAllRecurringsAsync(int page = 1);
         Task<RecurringExpenseDTO> GetRecurringByIdAsync(int recurringId);
         Task<bool> CreateRecurringAsync(CreateRecurringDTO recurring);
-        Task<bool> UpdateRecurringAsync(int id, UpdateRecurringDTO recurring);
+        Task<bool> UpdateRecurringAsync(UpdateRecurringDTO recurring);
         Task<bool> DeleteRecurringAsync(int recurringId);
         Task<FileContentResult> GetRecurringsReportAsync();
-
+        Task<IEnumerable<RecurringUIDTO>> GetAllRecurringsAsync();
     }
 }

@@ -1,32 +1,38 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using ExpenseManager.BusinessLayer.AuthorizationService.AuthDTO;
+using ExpenseManager.BusinessLayer.EmailService;
+using ExpenseManager.BusinessLayer.UserService.UserDTO;
+using ExpenseManager.DataAccessLayer.Data;
+using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using ExpenseManager.DataAccessLayer.Data;
-using ExpenseManager.DataAccessLayer.Entities;
-using ExpenseManager.BusinessLayer.AuthorizationService.AuthDTO;
-using ExpenseManager.BusinessLayer.UserService.UserDTO;
 
 namespace ExpenseManager.BusinessLayer.AuthorizationService
 {
-    public class AuthService (WalletManagerDbContext context, IConfiguration configuration): IAuthService
+    public class AuthService (WalletManagerDbContext context, IConfiguration configuration, IEmailSender emailSender) : IAuthService
     {
         public async Task<TokenResponseDTO?> LoginAsync(UserLoginDTO request)
         {
             var user = await context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user is null)
             {
-                return null;
+                throw new Exception("User not found");
             }
             var result = new PasswordHasher<User>().VerifyHashedPassword(user, user.Password, request.Password);
             if (result == PasswordVerificationResult.Failed)
             {
-                return null;
+                throw new Exception("Error with password");
             }
+
+            if (user.IsEmailConfirmed == 0 || user.IsEmailConfirmed == null)
+                throw new Exception("Email is not confirmed");
+
             return await CreateTokenResponse(user);
         }
 
@@ -41,7 +47,7 @@ namespace ExpenseManager.BusinessLayer.AuthorizationService
 
         public async Task<User?> RegisterAsync(CreateUserDTO request)
         {
-            if(await context.Users.AnyAsync(u => u.Name == request.Email))
+            if(await context.Users.AnyAsync(u => u.Email == request.Email))
             {
                 return null;
             }
@@ -51,11 +57,35 @@ namespace ExpenseManager.BusinessLayer.AuthorizationService
             user.Email = request.Email;
             user.Password = hashedPassword;
             user.CreateDate = DateTime.Now;
+            user.IsEmailConfirmed = 0;
+            var code = new Random().Next(100000, 999999).ToString();
+            user.EmailConfirmationCode = code;
             context.Users.Add(user);
             await context.SaveChangesAsync();
+
+            var message = new Message(new string[] { user.Email }, "Expense Manager App", $"Welcome to expense manager app, email verification code: {code}");
+            emailSender.SendEmail(message);
             return user;
         }
+        public async Task<string> ConfirmEmail(ConfirmCodeDTO dto)
+        {
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null)
+                throw new Exception ("User not found");
 
+            if (user.IsEmailConfirmed==1)
+                throw new Exception("Email is already confirmed");
+
+            if (user.EmailConfirmationCode != dto.Code)
+                throw new Exception("Invalid confirmation code");
+
+            user.IsEmailConfirmed = 1;
+            user.EmailConfirmationCode = null;
+
+            await context.SaveChangesAsync();
+
+            return "Email confirmed successfully";
+        }
         public async Task<TokenResponseDTO?> RefreshTokensAsync(RefreshTokenRequestDTO request)
         {
             var user = await ValidateRefreshTokenAsync(request.id, request.RefreshToken);
