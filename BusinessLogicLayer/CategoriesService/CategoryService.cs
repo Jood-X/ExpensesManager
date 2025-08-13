@@ -3,9 +3,10 @@ using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
+using System.Text;
 
 namespace ExpenseManager.BusinessLayer.CategoriesService
 {
@@ -15,7 +16,6 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor; 
-        private DateTime date = DateTime.UtcNow;
 
         public CategoryService(ICategoryRepository categoryRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
         {
@@ -45,20 +45,22 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             {
                 throw new InvalidOperationException("Page size configuration is invalid.");
             }
-            var totalUsersCount = await _categoryRepository.GetAllCategoriesCount();
-            var pageCount = (int)Math.Ceiling(totalUsersCount / (double)pageResult);
 
             var userId = GetUserIdOrThrow();
             var allCategories = await _categoryRepository.GetAllCategoriesAsync(); 
 
             var categories = allCategories
-                .Where(w => w.CreateBy.ToString() == userId);
+                .Where(w => w.CreateBy.ToString() == userId || w.CreateBy == null);
 
             if (searchTerm != null)
             {
                 searchTerm = searchTerm.ToLower();
                 categories = categories.Where(u => u.Name.ToLower().Contains(searchTerm));
             }
+
+            var totalCount = categories.Count();
+            var pageCount = (int)Math.Ceiling(totalCount / (double)pageResult);
+
             categories = categories
                 .Skip((page - 1) * pageResult)
                 .Take(pageResult);
@@ -94,24 +96,23 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
                 throw new ArgumentNullException(nameof(newCategory), "Category cannot be null");
             }
             var category = _mapper.Map<Category>(newCategory);
-            category.CreateDate = date;
+            category.CreateDate = DateTime.Now;
             category.CreateBy = int.Parse(userId);
 
             await _categoryRepository.Add(category);
             return true;
         }
 
-        public async Task<bool> UpdateCategoryAsync(int id, UpdateCategoryDTO updatedCategory)
+        public async Task<bool> UpdateCategoryAsync(UpdateCategoryDTO updatedCategory)
         {
             var userId = GetUserIdOrThrow();
-
-            var category = await _categoryRepository.GetCategoryByIdAsync(id);
+            var category = await _categoryRepository.GetCategoryByIdAsync(updatedCategory.Id);
             if (category == null || category.CreateBy.ToString() != userId)
             {
                 throw new InvalidOperationException("Category not found or you do not have permission to update this category.");
             }
-            category.UpdateDate = date;
             _mapper.Map(updatedCategory, category);
+            category.UpdateDate = DateTime.Now;
             await _categoryRepository.Update(category);
             return true;
         }
@@ -127,9 +128,53 @@ namespace ExpenseManager.BusinessLayer.CategoriesService
             await _categoryRepository.Delete(category);
             return true;
         }
-        public Task<IEnumerable<Category>> GetCategoriesByWalletIdAsync(int walletId)
+
+        public async Task<FileContentResult> GetCategoriesReportAsync(string? searchTerm)
         {
-            throw new NotImplementedException();
+            var userId = GetUserIdOrThrow();
+
+            string[] columnNames = { "Id", "Name", "Type", "Limit", "Color", "CreateBy", "CreateDate", "UpdateBy", "UpdateDate"};
+            var categories = await _categoryRepository.GetAllCategoriesAsync();
+            if (categories == null || !categories.Any())
+            {
+                throw new InvalidOperationException("No categories found for the report.");
+            }
+
+            categories = categories
+                .Where(w => w.CreateBy.ToString() == userId || w.CreateBy == null);
+
+            if (searchTerm != null)
+            {
+                searchTerm = searchTerm.ToLower();
+                categories = categories.Where(u => u.Name.ToLower().Contains(searchTerm));
+            }
+
+            string csv = string.Empty;
+            foreach (string columnName in columnNames)
+            {
+                csv += $"{columnName},";
+            }
+            csv += "\r\n";
+
+            foreach (var category in categories)
+            {
+                csv += $"{category.Id},{category.Name},{category.Type},{category.Limit},{category.Color},{category.CreateByNavigation?.Name},{category.CreateDate},{category.UpdateByNavigation?.Name},{category.UpdateDate}\r\n";
+            }
+            byte[] bytes = Encoding.ASCII.GetBytes(csv);
+            return new FileContentResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            {
+                FileDownloadName = "CategoriesReport.csv"
+            };
+        }
+
+        public async Task<IEnumerable<CategoryUIDTO>> GetAllCategoriesAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            var allCategories = await _categoryRepository.GetAll();
+            var categories = allCategories
+                .Where(w => w.CreateBy.ToString() == userId);
+            var result = categories.Select(category => _mapper.Map<CategoryUIDTO>(category)).ToList();
+            return result;
         }
     }
 }

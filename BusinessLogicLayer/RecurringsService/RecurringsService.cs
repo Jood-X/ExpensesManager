@@ -1,19 +1,17 @@
 ﻿using AutoMapper;
+using ExpenseManager.BusinessLayer.CategoriesService.CategoriesDTO;
+using ExpenseManager.BusinessLayer.JobService;
 using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
-using ExpenseManager.BusinessLayer.TransactionsService.TransactionsDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using ExpenseManager.DataAccessLayer.Interfaces.CategoriesRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.RecurringsRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.TransactionsRepository;
 using ExpenseManager.DataAccessLayer.Interfaces.WalletRepository;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace ExpenseManager.BusinessLayer.RecurringsService
 {
@@ -25,9 +23,9 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
         private readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private DateTime date = DateTime.UtcNow;
+        private readonly IJobService _jobService;
 
-        public RecurringsService(IRecurringRepository recurringRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+        public RecurringsService(IRecurringRepository recurringRepository, IWalletRepository walletRepository, ICategoryRepository categoryRepository, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor, IJobService jobService)
         {
             _recurringRepository = recurringRepository ?? throw new ArgumentNullException(nameof(TransactionRepository));
             _walletRepository = walletRepository ?? throw new ArgumentNullException(nameof(walletRepository));
@@ -35,6 +33,7 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _httpContextAccessor = httpContextAccessor;
+            _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
         }
         private string GetUserIdOrThrow()
         {
@@ -56,14 +55,14 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             {
                 throw new InvalidOperationException("Page size configuration is invalid.");
             }
-            var totalUsersCount = await _recurringRepository.GetAllRecurringsCountAsync();
-            var pageCount = (int)Math.Ceiling(totalUsersCount / (double)pageResult);
-
             var userId = GetUserIdOrThrow();
             var allRecurrings = await _recurringRepository.GetAllRecurringsAsync();
 
             var recurrings = allRecurrings
                 .Where(w => w.CreateBy.ToString() == userId);
+
+            var totalCount = recurrings.Count();
+            var pageCount = (int)Math.Ceiling(totalCount / (double)pageResult);
 
             recurrings = recurrings
                 .Skip((page - 1) * pageResult)
@@ -91,7 +90,6 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
 
             return _mapper.Map<RecurringExpenseDTO>(recurring);
         }
-
         public async Task<bool> CreateRecurringAsync(CreateRecurringDTO newRecurring)
         {
             var userId = GetUserIdOrThrow();
@@ -100,7 +98,7 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             {
                 throw new ArgumentNullException(nameof(newRecurring), "Recurring cannot be null");
             }
-            var wallet = await _walletRepository.GetWalletByIdAsync(newRecurring.WalletId, userId);
+            var wallet = await _walletRepository.GetWalletByIdAsync(newRecurring.WalletId, int.Parse(userId));
             if (wallet == null)
             {
                 throw new InvalidOperationException("Wallet not found or access denied.");
@@ -121,24 +119,30 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             {
                 throw new InvalidOperationException("Recurring amount exceeds category limit.");
             }
+            var intervalValue = newRecurring.IntervalValue;
             var recurring = _mapper.Map<Recurring>(newRecurring);
-            recurring.CreateDate = date;
+            recurring.CreateDate = DateTime.Now;
             recurring.CreateBy = int.Parse(userId);
             await _recurringRepository.Add(recurring);
+
+            
+            _jobService.ScheduleRecurringJob(recurring.Id, recurring.RepeatInterval, intervalValue, recurring.StartDate, recurring.EndDate);
+            
+
             return true;
         }
 
-        public async Task<bool> UpdateRecurringAsync(int id, UpdateRecurringDTO updateRecurring)
+        public async Task<bool> UpdateRecurringAsync(UpdateRecurringDTO updateRecurring)
         {
             var userId = GetUserIdOrThrow();
 
-            var recurring = await _recurringRepository.GetRecurringByIdAsync(id);
+            var recurring = await _recurringRepository.GetRecurringByIdAsync(updateRecurring.Id);
             if (recurring == null || recurring.CreateBy.ToString() != userId)
             {
                 throw new InvalidOperationException("Recurring not found or you do not have permission to update this recurring.");
             }
-            recurring.UpdateDate = date;
             _mapper.Map(updateRecurring, recurring);
+            recurring.UpdateDate = DateTime.Now;
             await _recurringRepository.Update(recurring);
             return true;
         }
@@ -156,9 +160,41 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
             return true;
         }
 
-        public Task<IEnumerable<Recurring>> GetRecurringsByWalletIdAsync(int walletId)
+        public async Task<FileContentResult> GetRecurringsReportAsync()
         {
-            throw new NotImplementedException();
-        }        
+            string[] columnNames = { "Id", "Amount", "Wallet", "Category", "RepeatInterval", "StartDate", "EndDate", "CreateBy", "CreateDate", "UpdateBy", "UpdateDate" };
+            var recurrings = await _recurringRepository.GetAllRecurringsAsync();
+            if (recurrings == null || !recurrings.Any())
+            {
+                throw new InvalidOperationException("No recurrings found for the report.");
+            }
+
+            string csv = string.Empty;
+            foreach (string columnName in columnNames)
+            {
+                csv += $"{columnName},";
+            }
+            csv += "\r\n";
+
+            foreach (var recurring in recurrings)
+            {
+                csv += $"{recurring.Id},{recurring.Amount},{recurring.Wallet.Name}, {recurring.Category.Name}, {recurring.RepeatInterval}, {recurring.StartDate}, {recurring.EndDate},{recurring.CreateByNavigation?.Name}, {recurring.CreateDate},{recurring.UpdateByNavigation?.Name},{recurring.UpdateDate}\r\n";
+            }
+            byte[] bytes = Encoding.ASCII.GetBytes(csv);
+            return new FileContentResult(bytes, "text/csv")
+            {
+                FileDownloadName = "RecurringsReport.csv"
+            };
+        }
+
+        public async Task<IEnumerable<RecurringUIDTO>> GetAllRecurringsAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            var allRecurrings = await _recurringRepository.GetAll();
+            var recurrings = allRecurrings
+                .Where(w => w.CreateBy.ToString() == userId);
+            var result = recurrings.Select(recurring => _mapper.Map<RecurringUIDTO>(recurring)).ToList();
+            return result;
+        }
     }
 }

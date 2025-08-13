@@ -2,6 +2,7 @@
 using ExpenseManager.BusinessLayer.UserService.UserDTO;
 using ExpenseManager.DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Mvc;
+using WebApplication2.Controllers;
 
 namespace ExpenseManager.Api.Controllers
 {
@@ -10,9 +11,13 @@ namespace ExpenseManager.Api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
-        public UsersController(IUserService userService)
+        private readonly ILogger<UsersController> _logger;
+
+        public UsersController(IUserService userService, ILogger<UsersController> logger)
         {
             _userService = userService;
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to UsersController");
         }
 
         [HttpGet]
@@ -25,6 +30,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<UsersPagingDTO>.ErrorResponse("An error occurred while retrieving the users", ex.Message); 
             }            
         }
@@ -39,6 +45,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<UsersDTO>.ErrorResponse("An error occurred while retrieving the user", ex.Message);
             }
         }
@@ -53,6 +60,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<UsersDTO>.ErrorResponse("An error occurred while creating the user", ex.Message);
             }
         }
@@ -67,6 +75,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the user", ex.Message);
             }
         }
@@ -81,7 +90,23 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the user", ex.Message);
+            }
+        }
+
+        [HttpGet("report")]
+        public async Task<IActionResult> GetUsersReport()
+        {
+            try
+            {
+                var report = await _userService.GetUsersReportAsync();
+                return File(report.FileContents, report.ContentType, report.FileDownloadName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(new ApiResponse<string>(false, "An error occurred while generating the report", null, ex.Message));
             }
         }
     }

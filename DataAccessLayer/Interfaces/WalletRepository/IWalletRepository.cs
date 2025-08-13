@@ -10,8 +10,8 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.WalletRepository
 {
     public interface IWalletRepository: IGenericRepo<Wallet>
     {
-        Task<int> GetAllWalletsCountAsync(string userId);
-        Task<IEnumerable<Wallet>> GetAllWalletsAsync(string userId, int pageResult, int page = 1);
-        Task<Wallet?> GetWalletByIdAsync(int id, string userId);
+        Task<int> GetAllWalletsCountAsync(int userId);
+        Task<IEnumerable<Wallet>> GetAllWalletsAsync(int userId);
+        Task<Wallet?> GetWalletByIdAsync(int id, int userId);
     }
 }

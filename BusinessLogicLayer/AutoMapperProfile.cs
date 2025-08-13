@@ -28,6 +28,7 @@ namespace ExpenseManager.BusinessLayer
             CreateMap<CategoryDTO, Category>();
             CreateMap<CreateCategoryDTO, Category>();
             CreateMap<UpdateCategoryDTO, Category>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<Category, CategoryUIDTO>();
 
             // Create maps between Transaction and TransactionDTO, CreateTransactionDTO, UpdateTransactionDTO
             CreateMap<Transaction, TransactionDTO>()
@@ -41,7 +42,11 @@ namespace ExpenseManager.BusinessLayer
                     opt => opt.MapFrom(src => src.Wallet != null ? src.Wallet.Name : ""));
             CreateMap<TransactionDTO, Transaction>();
             CreateMap<CreateTransactionDTO, Transaction>();
-            CreateMap<UpdateTransactionDTO, Transaction>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<UpdateTransactionDTO, Transaction>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) =>
+                    srcMember != null &&
+                    !(srcMember is int value && value == 0)));
+            CreateMap<Transaction, TransactionUIDTO>();
 
             // Create maps between RecurringExpense and RecurringExpenseDTO, CreateRecurringExpenseDTO, UpdateRecurringExpenseDTO
             CreateMap<Recurring, RecurringExpenseDTO>()
@@ -56,6 +61,7 @@ namespace ExpenseManager.BusinessLayer
             CreateMap<RecurringExpenseDTO, Recurring>();
             CreateMap<CreateRecurringDTO, Recurring>();
             CreateMap<UpdateRecurringDTO, Recurring>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<Recurring, RecurringUIDTO>();
 
             // Create maps between Wallet and WalletDTO, CreateWalletDTO, UpdateWalletDTO
             CreateMap<Wallet, WalletsDTO>()
@@ -67,7 +73,7 @@ namespace ExpenseManager.BusinessLayer
             CreateMap<WalletsDTO, Wallet>();
             CreateMap<CreateWalletDTO, Wallet>();
             CreateMap<UpdateWalletDTO, Wallet>().ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
-
+            CreateMap<Wallet, WalletUIDTO>();
         }
 
     }

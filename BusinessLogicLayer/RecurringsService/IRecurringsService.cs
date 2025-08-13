@@ -1,5 +1,6 @@
-﻿using ExpenseManager.DataAccessLayer.Entities;
-using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
+﻿using ExpenseManager.BusinessLayer.RecurringsService.RecurringsDTO;
+using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseManager.BusinessLayer.RecurringsService
 {
@@ -8,8 +9,9 @@ namespace ExpenseManager.BusinessLayer.RecurringsService
         Task<RecurringPagingDTO> GetAllRecurringsAsync(int page = 1);
         Task<RecurringExpenseDTO> GetRecurringByIdAsync(int recurringId);
         Task<bool> CreateRecurringAsync(CreateRecurringDTO recurring);
-        Task<bool> UpdateRecurringAsync(int id, UpdateRecurringDTO recurring);
+        Task<bool> UpdateRecurringAsync(UpdateRecurringDTO recurring);
         Task<bool> DeleteRecurringAsync(int recurringId);
-        Task<IEnumerable<Recurring>> GetRecurringsByWalletIdAsync(int walletId);
+        Task<FileContentResult> GetRecurringsReportAsync();
+        Task<IEnumerable<RecurringUIDTO>> GetAllRecurringsAsync();
     }
 }

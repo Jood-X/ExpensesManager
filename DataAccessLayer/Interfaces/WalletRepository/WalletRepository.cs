@@ -19,27 +19,27 @@ namespace ExpenseManager.DataAccessLayer.Interfaces.WalletRepository
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
-        public async Task<int> GetAllWalletsCountAsync(string userId)
+        public async Task<int> GetAllWalletsCountAsync(int userId)
         {
             var wallets = _context.Wallets
-                .Where(w => w.CreateBy.ToString() == userId)
+                .Where(w => w.CreateBy == userId)
                 .Count();
             return wallets;
         }
-        public async Task<IEnumerable<Wallet>> GetAllWalletsAsync(string userId, int pageResult, int page = 1)
+        public async Task<IEnumerable<Wallet>> GetAllWalletsAsync(int userId)
         {
             var wallets = _context.Wallets
                 .Include(c => c.CreateByNavigation)
                 .Include(c => c.UpdateByNavigation)
-                .Where(r => r.CreateBy.ToString() == userId);
+                .Where(r => r.CreateBy == userId);
             return wallets;
         }
-        public async Task<Wallet?> GetWalletByIdAsync(int id, string userId)
+        public async Task<Wallet?> GetWalletByIdAsync(int id, int userId)
         {
             var wallet = await _context.Wallets
                 .Include(w => w.CreateByNavigation)
                 .Include(w => w.UpdateByNavigation)
-                .FirstOrDefaultAsync(w => w.Id == id && w.CreateBy.ToString() == userId);
+                .FirstOrDefaultAsync(w => w.Id == id && w.CreateBy == userId);
             return wallet;
         }
     }

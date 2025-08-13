@@ -1,9 +1,12 @@
 ﻿using ExpenseManager.BusinessLayer.WalletService;
 using ExpenseManager.BusinessLayer.WalletService.WalletDTO;
+using ExpenseManager.DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Claims;
-using ExpenseManager.DataAccessLayer.Entities;
+using WebApplication2.Controllers;
 
 namespace ExpenseManager.Api.Controllers
 {
@@ -14,13 +17,17 @@ namespace ExpenseManager.Api.Controllers
     public class WalletsController : ControllerBase
     {
         private readonly IWalletService _walletService;
-        public WalletsController(IWalletService walletService)
+        private readonly ILogger<WalletsController> _logger;
+
+        public WalletsController(IWalletService walletService, ILogger<WalletsController> logger)
         {
             _walletService = walletService;
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to WalletsController");
         }
 
         [HttpGet]
-        public async Task<ApiResponse<WalletPagingDTO>> GetAll(string? searchTerm, int page=1)
+        public async Task<ApiResponse<WalletPagingDTO>> GetAllPaging(string? searchTerm, int page=1)
         {
             try
             {
@@ -29,7 +36,23 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResponse<WalletPagingDTO>.ErrorResponse("An error occurred while retrieving users", ex.Message);
+                _logger.LogError(ex.Message);
+                return ApiResponse<WalletPagingDTO>.ErrorResponse("An error occurred while retrieving wallets", ex.Message);
+            }
+        }
+
+        [HttpGet("MyWallets")]
+        public async Task<ApiResponse<IEnumerable<WalletUIDTO>>> GetAll()
+        {
+            try
+            {
+                var response = await _walletService.GetAllWalletsAsync();
+                return ApiResponse<IEnumerable<WalletUIDTO>>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return ApiResponse<IEnumerable<WalletUIDTO>>.ErrorResponse("An error occurred while retrieving wallets", ex.Message);
             }
         }
 
@@ -44,6 +67,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<WalletsDTO>.ErrorResponse("An error occurred while retrieving the user", ex.Message);
             }
         }
@@ -58,12 +82,13 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while retrieving users", ex.Message);
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<ApiResponse<string>> Update(int id, UpdateWalletDTO updatedWallet)
+        [HttpPut]
+        public async Task<ApiResponse<string>> Update(UpdateWalletDTO updatedWallet)
         {
             try
             {
@@ -72,6 +97,7 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while updating the wallet", ex.Message);
             }
         }
@@ -86,8 +112,24 @@ namespace ExpenseManager.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex.Message);
                 return ApiResponse<string>.ErrorResponse("An error occurred while deleting the wallet", ex.Message);
             }          
+        }
+
+        [HttpGet("report")]
+        public async Task<IActionResult> GetWalletsReport(string? searchTerm)
+        {
+            try
+            {
+                var report = await _walletService.GetWalletsReportAsync(searchTerm);
+                return File(report.FileContents, report.ContentType, report.FileDownloadName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(new ApiResponse<string>(false, "An error occurred while generating the report", null, ex.Message));
+            }
         }
     }
 }

@@ -32,4 +32,7 @@ public partial class User
 
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; }
-    }
+
+    public int? IsEmailConfirmed { get; set; } = 0; 
+    public string? EmailConfirmationCode { get; set; } = null!;
+}

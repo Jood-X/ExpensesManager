@@ -1,5 +1,6 @@
-﻿using ExpenseManager.DataAccessLayer.Entities;
-using ExpenseManager.BusinessLayer.UserService.UserDTO;
+﻿using ExpenseManager.BusinessLayer.UserService.UserDTO;
+using ExpenseManager.DataAccessLayer.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseManager.BusinessLayer.UserService
 {
@@ -10,5 +11,6 @@ namespace ExpenseManager.BusinessLayer.UserService
         Task<UsersDTO> CreateUserAsync(CreateUserDTO user);
         Task<bool> UpdateUserAsync(UpdateUserDTO user);
         Task<bool> DeleteUserAsync(int userId);
+        Task<FileContentResult> GetUsersReportAsync();
     }
 }

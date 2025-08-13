@@ -10,6 +10,6 @@ namespace ExpenseManager.BusinessLayer.AuthorizationService
         Task<TokenResponseDTO?> LoginAsync(UserLoginDTO request);
 
         Task<TokenResponseDTO?> RefreshTokensAsync(RefreshTokenRequestDTO request);
-       
+        Task<string> ConfirmEmail(ConfirmCodeDTO dto);
     }
 }

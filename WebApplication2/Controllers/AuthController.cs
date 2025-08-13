@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using ExpenseManager.BusinessLayer.AuthorizationService.AuthDTO;
 using ExpenseManager.BusinessLayer.AuthorizationService;
 using ExpenseManager.BusinessLayer.UserService.UserDTO;
+using ExpenseManager.BusinessLayer.EmailService;
+using ExpenseManager.BusinessLayer.UserService;
 
 namespace ExpenseManager.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController(IAuthService authService) : ControllerBase
+    public class AuthController(IAuthService authService, IUserService userService) : ControllerBase
     {
         [HttpPost("register")]
         public async Task<ApiResponse<string>> Register(CreateUserDTO request)
@@ -21,16 +23,32 @@ namespace ExpenseManager.Api.Controllers
             string message = $"User {user.Name} Added Successfully";
             return ApiResponse<string>.SuccessResponse(message);
         }
+        [HttpPost("confirmemail")]
+        public async Task<ApiResponse<string>> ConfirmEmail([FromBody] ConfirmCodeDTO dto)
+        {
+            try
+            {
+                var result = await authService.ConfirmEmail(dto);
+                return ApiResponse<string>.SuccessResponse(result);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResponse();
+            }
+        }
 
         [HttpPost("login")]
         public async Task<ApiResponse<TokenResponseDTO>> Login(UserLoginDTO request)
         {
-            var result = await authService.LoginAsync(request);
-            if (result is null)
+            try
             {
-                return ApiResponse<TokenResponseDTO>.ErrorResponse("Invalid email or password");
+                var result = await authService.LoginAsync(request);
+                return ApiResponse<TokenResponseDTO>.SuccessResponse(result);
             }
-            return ApiResponse<TokenResponseDTO>.SuccessResponse(result);
+            catch (Exception ex)
+            {
+                return ApiResponse<TokenResponseDTO>.ErrorResponse(ex.Message);
+            }
         }
 
         [HttpPost("refresh-token")]
